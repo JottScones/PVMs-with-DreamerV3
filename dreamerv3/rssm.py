@@ -135,6 +135,7 @@ class RSSM(nj.Module):
             lambda c, _: self.imagine(c, policy, 1, training, single=True),
             nn.cast(carry), (), length, unroll=unroll, axis=1)
       else:
+        # we run the imagination for length timesteps and produce length outputs
         carry, (feat, action) = nj.scan(
             lambda c, a: self.imagine(c, a, 1, training, single=True),
             nn.cast(carry), nn.cast(policy), length, unroll=unroll, axis=1)

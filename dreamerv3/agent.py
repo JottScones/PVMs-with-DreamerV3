@@ -48,20 +48,25 @@ class Agent(embodied.jax.Agent):
         'simple': rssm.Decoder,
     }[config.dec.typ](dec_space, **config.dec[config.dec.typ], name='dec')
 
+    # concatenate the recurrent and latent state along their final dimension
     self.feat2tensor = lambda x: jnp.concatenate([
         nn.cast(x['deter']),
         nn.cast(x['stoch'].reshape((*x['stoch'].shape[:-2], -1)))], -1)
 
     scalar = elements.Space(np.float32, ())
     binary = elements.Space(bool, (), 0, 2)
+
+    # reward and continue heads of rssm
     self.rew = embodied.jax.MLPHead(scalar, **config.rewhead, name='rew')
     self.con = embodied.jax.MLPHead(binary, **config.conhead, name='con')
 
+    # actor network
     d1, d2 = config.policy_dist_disc, config.policy_dist_cont
     outs = {k: d1 if v.discrete else d2 for k, v in act_space.items()}
     self.pol = embodied.jax.MLPHead(
         act_space, outs, **config.policy, name='pol')
 
+    # critic network and its ema
     self.val = embodied.jax.MLPHead(scalar, **config.value, name='val')
     self.slowval = embodied.jax.SlowModel(
         embodied.jax.MLPHead(scalar, **config.value, name='slowval'),
@@ -115,19 +120,31 @@ class Agent(embodied.jax.Agent):
   def policy(self, carry, obs, mode='train'):
     (enc_carry, dyn_carry, dec_carry, prevact) = carry
     kw = dict(training=False, single=True)
+
+    # reset if first observation from episode
     reset = obs['is_first']
+
+    # encode observation (tokens) and update model state
     enc_carry, enc_entry, tokens = self.enc(enc_carry, obs, reset, **kw)
+
+    # update model state (dyn_carry)
     dyn_carry, dyn_entry, feat = self.dyn.observe(
         dyn_carry, tokens, prevact, reset, **kw)
+
+    # decode feature optionally 
     dec_entry = {}
     if dec_carry:
       dec_carry, dec_entry, recons = self.dec(dec_carry, feat, reset, **kw)
+
+    # sample action from policy
     policy = self.pol(self.feat2tensor(feat), bdims=1)
     act = sample(policy)
     out = {}
     out['finite'] = elements.tree.flatdict(jax.tree.map(
         lambda x: jnp.isfinite(x).all(range(1, x.ndim)),
         dict(obs=obs, carry=carry, tokens=tokens, feat=feat, act=act)))
+
+    # note both enc_carry and dec_carry are not changed
     carry = (enc_carry, dyn_carry, dec_carry, act)
     if self.config.replay_context:
       out.update(elements.tree.flatdict(dict(
@@ -135,7 +152,10 @@ class Agent(embodied.jax.Agent):
     return carry, act, out
 
   def train(self, carry, data):
+    # prepare replay buffer data
     carry, obs, prevact, stepid = self._apply_replay_context(carry, data)
+
+    # perform an update step
     metrics, (carry, entries, outs, mets) = self.opt(
         self.loss, carry, obs, prevact, training=True, has_aux=True)
     metrics.update(mets)
@@ -160,21 +180,34 @@ class Agent(embodied.jax.Agent):
     losses = {}
     metrics = {}
 
-    # World model
+    # ---------------- World model ----------------
+    # dyn, rep, rec, rew, cont losses
+
+    # produce embeddings (tokens) from observations
     enc_carry, enc_entries, tokens = self.enc(
         enc_carry, obs, reset, training)
+    # calculate the prior and posterior kl losses
     dyn_carry, dyn_entries, los, repfeat, mets = self.dyn.loss(
         dyn_carry, tokens, prevact, reset, training)
+
     losses.update(los)
     metrics.update(mets)
+
+    # decode posterior model state (repfeat)
     dec_carry, dec_entries, recons = self.dec(
         dec_carry, repfeat, reset, training)
+
+    # calculate reward loss from true reward 
     inp = sg(self.feat2tensor(repfeat), skip=self.config.reward_grad)
     losses['rew'] = self.rew(inp, 2).loss(obs['reward'])
+
+    # calculate continue loss from depending on if state is terminal
     con = f32(~obs['is_terminal'])
     if self.config.contdisc:
       con *= 1 - 1 / self.config.horizon
     losses['con'] = self.con(self.feat2tensor(repfeat), 2).loss(con)
+
+    # calculate reconstruction loss decoding the model state
     for key, recon in recons.items():
       space, value = self.obs_space[key], obs[key]
       assert value.dtype == space.dtype, (key, space, value.dtype)
@@ -185,20 +218,29 @@ class Agent(embodied.jax.Agent):
     shapes = {k: v.shape for k, v in losses.items()}
     assert all(x == (B, T) for x in shapes.values()), ((B, T), shapes)
 
-    # Imagination
+    # --------------- Imagination ----------------
     K = min(self.config.imag_last or T, T)
+    # horizon - length of rollout
     H = self.config.imag_length
+
+    # imagine a trajectory
     starts = self.dyn.starts(dyn_entries, dyn_carry, K)
     policyfn = lambda feat: sample(self.pol(self.feat2tensor(feat), 1))
     _, imgfeat, imgprevact = self.dyn.imagine(starts, policyfn, H, training)
+
+    # concatenate the starting state to the imagined sequence of states
     first = jax.tree.map(
         lambda x: x[:, -K:].reshape((B * K, 1, *x.shape[2:])), repfeat)
     imgfeat = concat([sg(first, skip=self.config.ac_grads), sg(imgfeat)], 1)
+
+    # we sample a final action such that we have the same number of imagined states as actions
     lastact = policyfn(jax.tree.map(lambda x: x[:, -1], imgfeat))
     lastact = jax.tree.map(lambda x: x[:, None], lastact)
     imgact = concat([imgprevact, lastact], 1)
     assert all(x.shape[:2] == (B * K, H + 1) for x in jax.tree.leaves(imgfeat))
     assert all(x.shape[:2] == (B * K, H + 1) for x in jax.tree.leaves(imgact))
+
+    # calculate the loss of the actor and critic using the imagined trajectory
     inp = self.feat2tensor(imgfeat)
     los, imgloss_out, mets = imag_loss(
         imgact,
@@ -215,7 +257,9 @@ class Agent(embodied.jax.Agent):
     losses.update({k: v.mean(1).reshape((B, K)) for k, v in los.items()})
     metrics.update(mets)
 
-    # Replay
+    # ------------------- Replay -----------------
+    # we can optionally compute additional critic loss from stored trajectories
+    # from the replay buffer
     if self.config.repval_loss:
       feat = sg(repfeat, skip=self.config.repval_grad)
       last, term, rew = [obs[k] for k in ('is_last', 'is_terminal', 'reward')]
@@ -245,6 +289,7 @@ class Agent(embodied.jax.Agent):
     return loss, (carry, entries, outs, metrics)
 
   def report(self, carry, data):
+    # generates metrics to monitor model training and open loop video predictions
     if not self.config.report:
       return carry, {}
 
@@ -310,6 +355,10 @@ class Agent(embodied.jax.Agent):
     return carry, metrics
 
   def _apply_replay_context(self, carry, data):
+    """
+    When training from the replay buffer we prepend the previous observations with actions.
+    This produces an appropriate context window for model state predictions
+    """
     (enc_carry, dyn_carry, dec_carry, prevact) = carry
     carry = (enc_carry, dyn_carry, dec_carry)
     stepid = data['stepid']
@@ -319,6 +368,7 @@ class Agent(embodied.jax.Agent):
     if not self.config.replay_context:
       return carry, obs, prevact, stepid
 
+    # if there is a replay context we use a fixed length context window of size K
     K = self.config.replay_context
     nested = elements.tree.nestdict(data)
     entries = [nested.get(k, {}) for k in ('enc', 'dyn', 'dec')]
@@ -404,6 +454,7 @@ def imag_loss(
   term = 1 - con
   ret = lambda_return(last, term, rew, tarval, tarval, disc, lam)
 
+  # actor (REINFORCE) loss uses lambda returns and an entropy term to encourage exploration
   roffset, rscale = retnorm(ret, update)
   adv = (ret - tarval[:, :-1]) / rscale
   aoffset, ascale = advnorm(adv, update)
@@ -414,6 +465,7 @@ def imag_loss(
       logpi * sg(adv_normed) + actent * sum(ents.values()))
   losses['policy'] = policy_loss
 
+  # critic loss learns to predict normalised returns and is stabilised using a slow moving target
   voffset, vscale = valnorm(ret, update)
   tar_normed = (ret - voffset) / vscale
   tar_padded = jnp.concatenate([tar_normed, 0 * tar_normed[:, -1:]], 1)
@@ -455,6 +507,7 @@ def repl_loss(
     horizon=333,
     lam=0.95,
 ):
+  # critic only loss for trajectories in replay buffer
   losses = {}
 
   voffset, vscale = valnorm.stats()
