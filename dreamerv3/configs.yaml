@@ -197,6 +197,15 @@ defaults:
           kernel: 5,
           strided: False,
         }
+      perception_encoder:
+        {
+          layers: 3,
+          units: 1024,
+          act: silu,
+          norm: rms,
+          winit: trunc_normal_in,
+          symlog: True,
+        }
     dec:
       typ: simple
       simple:
@@ -337,6 +346,27 @@ procgen:
 atari100k:
   task: atari100k_pong
   run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
+
+atari100kPE:
+  task: atari100k_pong
+  run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
+  env:
+    atari100k:
+      {
+        size: [224, 224],
+        repeat: 4,
+        sticky: False,
+        gray: False,
+        actions: needed,
+        lives: unused,
+        noops: 30,
+        autostart: False,
+        resize: pillow,
+        clip_reward: False,
+      }
+  agent:
+    enc:
+      typ: perception_encoder
 
 crafter:
   task: crafter_reward
