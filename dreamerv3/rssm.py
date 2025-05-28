@@ -347,6 +347,17 @@ class PEEncoder(Encoder):
   Use facebook perception encoder to encode image observation producing a single 1024 vector.
   Compared to default vector of length 4x4x256=4096.
   """
+  units: int = 1024
+  norm: str = 'rms'
+  act: str = 'gelu'
+  depth: int = 64
+  mults: tuple = (2, 3, 4, 4)
+  layers: int = 3
+  kernel: int = 5
+  symlog: bool = True
+  outer: bool = False
+  strided: bool = False
+
   def __init__(self, obs_space, **kw):
     super().__init__(obs_space, **kw)
 
@@ -371,7 +382,7 @@ class PEEncoder(Encoder):
     x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x))
 
     x = x.reshape((x.shape[0], -1))
-    return super().encode_image_obs(obs, bdims)
+    return x
 
 
 class Decoder(nj.Module):
