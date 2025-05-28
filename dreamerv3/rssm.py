@@ -387,7 +387,6 @@ class DinoEncoder(nj.Module):
 RESIZE = 256
 CROP = 224
 MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 
 def preprocess_images(imgs):
@@ -472,10 +471,6 @@ class Decoder(nj.Module):
         self.obs_space = obs_space
 
         # Separate out vector and image observations
-        self.veckeys = [k for k, s in obs_space.items() if len(s.shape) <= 2]
-        self.imgkeys = [k for k, s in obs_space.items() if len(s.shape) == 3]
-
-        # The output channels of the CNN layers
         self.depths = tuple(self.depth * mult for mult in self.mults)
 
         # Get the channels and resolutions in the image observations
