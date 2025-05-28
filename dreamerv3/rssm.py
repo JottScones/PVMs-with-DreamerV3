@@ -9,6 +9,11 @@ import jax.numpy as jnp
 import ninjax as nj
 import numpy as np
 
+import torch
+import perception_models.core.vision_encoder.pe as pe
+
+from torch.nn import functional as F
+
 f32 = jnp.float32
 sg = jax.lax.stop_gradient
 
@@ -261,63 +266,72 @@ class Encoder(nj.Module):
   def truncate(self, entries, carry=None):
     return {}
 
+  def encode_vector_obs(self, obs, bdims):
+    vspace = {k: self.obs_space[k] for k in self.veckeys}
+    vecs = {k: obs[k] for k in self.veckeys}
+
+    # Symlog or identity function if specified
+    squish = nn.symlog if self.symlog else lambda x: x
+    x = nn.DictConcat(vspace, 1, squish=squish)(vecs)
+
+    # Flattens the bdims dimensions into one (time and batch dimensions I think)
+    x = x.reshape((-1, *x.shape[bdims:]))
+
+    # MLP forward pass
+    for i in range(self.layers):
+      # Create/lookup a linear layer with the specified units
+      x = self.sub(f'mlp{i}', nn.Linear, self.units, **self.kw)(x)
+      x = nn.act(self.act)(self.sub(f'mlp{i}norm', nn.Norm, self.norm)(x))
+    
+    return x
+  
+  def encode_image_obs(self, obs, bdims):
+    K = self.kernel
+    imgs = [obs[k] for k in sorted(self.imgkeys)]
+    assert all(x.dtype == jnp.uint8 for x in imgs)
+
+    # Concatenate images along the last dimension (channel dimension) 
+    # and flatten the batch and time dimensions
+    x = nn.cast(jnp.concatenate(imgs, -1), force=True) / 255 - 0.5
+    x = x.reshape((-1, *x.shape[bdims:]))
+
+    # Forward pass through the image encoder
+    for i, depth in enumerate(self.depths):
+      if self.outer and i == 0:
+        x = self.sub(f'cnn{i}', nn.Conv2D, depth, K, **self.kw)(x)
+
+      elif self.strided:
+        x = self.sub(f'cnn{i}', nn.Conv2D, depth, K, 2, **self.kw)(x)
+
+      else:
+        x = self.sub(f'cnn{i}', nn.Conv2D, depth, K, **self.kw)(x)
+        B, H, W, C = x.shape
+        # Effectively 2x2 max pooling halving dimensions: (B, H/2, W/2, C) 
+        x = x.reshape((B, H // 2, 2, W // 2, 2, C)).max((2, 4))
+
+      # Apply activation and normalization
+      x = nn.act(self.act)(self.sub(f'cnn{i}norm', nn.Norm, self.norm)(x))
+
+    assert 3 <= x.shape[-3] <= 16, x.shape
+    assert 3 <= x.shape[-2] <= 16, x.shape
+    # Flatten all dimensions except the first (batch dimension)
+    x = x.reshape((x.shape[0], -1))
+
+    return x
+
   def __call__(self, carry, obs, reset, training, single=False):
     bdims = 1 if single else 2
     outs = []
     bshape = reset.shape
 
     if self.veckeys:
-      # Gather vector shapes and values
-      vspace = {k: self.obs_space[k] for k in self.veckeys}
-      vecs = {k: obs[k] for k in self.veckeys}
-
-      # Symlog or identity function if specified
-      squish = nn.symlog if self.symlog else lambda x: x
-      x = nn.DictConcat(vspace, 1, squish=squish)(vecs)
-
-      # Flattens the bdims dimensions into one (time and batch dimensions I think)
-      x = x.reshape((-1, *x.shape[bdims:]))
-
-      # MLP forward pass
-      for i in range(self.layers):
-        # Create/lookup a linear layer with the specified units
-        x = self.sub(f'mlp{i}', nn.Linear, self.units, **self.kw)(x)
-        x = nn.act(self.act)(self.sub(f'mlp{i}norm', nn.Norm, self.norm)(x))
-
+      x = self.encode_vector_obs(obs, bdims)
       # Store output
       outs.append(x)
 
     if self.imgkeys:
-      K = self.kernel
-      imgs = [obs[k] for k in sorted(self.imgkeys)]
-      assert all(x.dtype == jnp.uint8 for x in imgs)
-
-      # Concatenate images along the last dimension (channel dimension) 
-      # and flatten the batch and time dimensions
-      x = nn.cast(jnp.concatenate(imgs, -1), force=True) / 255 - 0.5
-      x = x.reshape((-1, *x.shape[bdims:]))
-
-      # Forward pass through the image encoder
-      for i, depth in enumerate(self.depths):
-        if self.outer and i == 0:
-          x = self.sub(f'cnn{i}', nn.Conv2D, depth, K, **self.kw)(x)
-
-        elif self.strided:
-          x = self.sub(f'cnn{i}', nn.Conv2D, depth, K, 2, **self.kw)(x)
-
-        else:
-          x = self.sub(f'cnn{i}', nn.Conv2D, depth, K, **self.kw)(x)
-          B, H, W, C = x.shape
-          # Effectively 2x2 max pooling halving dimensions: (B, H/2, W/2, C) 
-          x = x.reshape((B, H // 2, 2, W // 2, 2, C)).max((2, 4))
-
-        # Apply activation and normalization
-        x = nn.act(self.act)(self.sub(f'cnn{i}norm', nn.Norm, self.norm)(x))
-
-      assert 3 <= x.shape[-3] <= 16, x.shape
-      assert 3 <= x.shape[-2] <= 16, x.shape
-      # Flatten all deimensions except the first (batch dimension)
-      x = x.reshape((x.shape[0], -1))
+      x = self.encode_image_obs(obs, bdims)
+      # Store output
       outs.append(x)
 
     # Form a single output tensor by concatenating all outputs
@@ -327,6 +341,37 @@ class Encoder(nj.Module):
     tokens = x.reshape((*bshape, *x.shape[1:]))
     entries = {}
     return carry, entries, tokens
+  
+class PEEncoder(Encoder):
+  """
+  Use facebook perception encoder to encode image observation producing a single 1024 vector.
+  Compared to default vector of length 4x4x256=4096.
+  """
+  def __init__(self, obs_space, **kw):
+    super().__init__(obs_space, **kw)
+
+    model = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True)  # Downloads from HF
+    self.model = model.cuda()
+
+  def encode_image_obs(self, obs, bdims, normalise=True):
+    imgs = [obs[k] for k in sorted(self.imgkeys)]
+    assert all(x.dtype == jnp.uint8 for x in imgs)
+
+    # Concatenate images along the last dimension (channel dimension) 
+    # and flatten the batch and time dimensions
+    x = nn.cast(jnp.concatenate(imgs, -1), force=True) / 255 - 0.5
+    x = x.reshape((-1, *x.shape[bdims:]))
+
+    with torch.no_grad(), torch.autocast("cuda"):
+      # Need to convert to pytorch
+      pt_x = torch.from_dlpack(jax.dlpack.to_dlpack(x))
+      pt_x = self.model(pt_x)
+    
+    x = jax.dlpack.from_dlpack(torch.to_dlpack(pt_x))
+    x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x))
+
+    x = x.reshape((x.shape[0], -1))
+    return super().encode_image_obs(obs, bdims)
 
 
 class Decoder(nj.Module):
