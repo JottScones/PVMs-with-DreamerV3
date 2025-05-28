@@ -567,10 +567,6 @@ class Decoder(nj.Module):
         self.obs_space = obs_space
 
         # Separate out vector and image observations
-        self.veckeys = [k for k, s in obs_space.items() if len(s.shape) <= 2]
-        self.imgkeys = [k for k, s in obs_space.items() if len(s.shape) == 3]
-
-        # The output channels of the CNN layers
         self.depths = tuple(self.depth * mult for mult in self.mults)
 
         # Get the channels and resolutions in the image observations
