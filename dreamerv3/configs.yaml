@@ -199,6 +199,8 @@ defaults:
         }
       perception_encoder:
         {
+          depth: 64,
+          mults: [2, 3, 4, 4],
           layers: 3,
           units: 1024,
           act: silu,
@@ -348,7 +350,7 @@ atari100k:
   run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
 
 atari100kPE:
-  task: atari100k_pong
+  task: atari100kPE_pong
   run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
   env:
     atari100k:
