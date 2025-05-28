@@ -363,28 +363,96 @@ class PEEncoder(Encoder):
 
     model = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True)  # Downloads from HF
     self.model = model.cuda()
+  
+  def _pe_call(self, x):
+    with torch.no_grad(), torch.autocast("cuda"):
+      # Need to convert to pytorch
+      pt_x = torch.from_dlpack(jax.dlpack.to_dlpack(x))
+      pt_x = self.model(pt_x)
+    
+    return jax.dlpack.from_dlpack(torch.to_dlpack(pt_x))
 
-  def encode_image_obs(self, obs, bdims, normalise=True):
+  def encode_image_obs(self, obs, bdims):
     imgs = [obs[k] for k in sorted(self.imgkeys)]
     assert all(x.dtype == jnp.uint8 for x in imgs)
 
     # Concatenate images along the last dimension (channel dimension) 
     # and flatten the batch and time dimensions
     x = nn.cast(jnp.concatenate(imgs, -1), force=True) / 255 - 0.5
-    x = x.reshape((-1, *x.shape[bdims:]))
+    x_reshaped = x.reshape((-1, *x.shape[bdims:]))
 
-    with torch.no_grad(), torch.autocast("cuda"):
-      # Need to convert to pytorch
-      pt_x = torch.from_dlpack(jax.dlpack.to_dlpack(x))
-      pt_x = self.model(pt_x)
-    
-    x = jax.dlpack.from_dlpack(torch.to_dlpack(pt_x))
-    x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x))
+    result_shape_abstract = jax.ShapeDtypeStruct((x_reshaped.shape[0], 1024), x_reshaped.dtype)
+    x_from_pytorch = jax.pure_callback(
+            self._pe_call, # The Python function to call
+            result_shape_abstract,    # An abstract JAX array representing the output shape and dtype
+            x_reshaped,               # Arguments to the callback function
+            vectorized=True          # Set to True if your callback is vectorized for vmap
+        )
+
+    x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x_from_pytorch))
 
     x = x.reshape((x.shape[0], -1))
     return x
 
-
+"""
+Traceback (most recent call last):
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 277, in <module>
+    main()
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 69, in main
+    embodied.run.train(
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/run/train.py", line 11, in train
+    agent = make_agent()
+            ^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 138, in make_agent
+    return Agent(obs_space, act_space, elements.Config(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/agent.py", line 47, in __new__
+    outer.__init__(model, obs_space, act_space, config, jaxcfg)
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/agent.py", line 113, in __init__
+    self.params, self.train_params_sharding = self._init_params()
+                                              ^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/agent.py", line 437, in _init_params
+    params, params_sharding = transform.init(
+                              ^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/transform.py", line 50, in init
+    params_shapes = fn.eval_shape(*dummy_inputs)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/transform.py", line 44, in fn
+    params, _ = inner(params, *args, seed=seed)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/transform.py", line 34, in wrapper
+    state, out = fun(*args, create=True, modify=True, ignore=True, **kwargs)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/ninjax/ninjax.py", line 41, in hidewrapper
+    raise e
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/agent.py", line 160, in train
+    metrics, (carry, entries, outs, mets) = self.opt(
+                                            ^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/opt.py", line 43, in __call__
+    loss, params, grads, aux = nj.grad(
+                               ^^^^^^^^
+  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/contextlib.py", line 81, in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/opt.py", line 35, in lossfn2
+    outs = lossfn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/agent.py", line 188, in loss
+    enc_carry, enc_entries, tokens = self.enc(
+                                     ^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/rssm.py", line 333, in __call__
+    x = self.encode_image_obs(obs, bdims)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/rssm.py", line 378, in encode_image_obs
+    pt_x = torch.from_dlpack(jax.dlpack.to_dlpack(x))
+                             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/dlpack.py", line 106, in to_dlpack
+    raise TypeError("Argument to to_dlpack must be a jax.Array, "
+TypeError: Argument to to_dlpack must be a jax.Array, got <class 'jax._src.interpreters.partial_eval.DynamicJaxprTracer'>
+Exception happened inside Ninjax scope 'enc'.
+--------------------
+For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.
+"""
 class Decoder(nj.Module):
 
   units: int = 1024
