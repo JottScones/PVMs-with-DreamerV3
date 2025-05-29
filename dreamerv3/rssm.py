@@ -5,6 +5,7 @@ import elements
 import embodied.jax
 import embodied.jax.nets as nn
 import jax
+from ml_dtypes import bfloat16 as np_bfloat16_dtype
 import jax.numpy as jnp
 import ninjax as nj
 import numpy as np
@@ -381,7 +382,7 @@ class PEEncoder(Encoder):
       for img in images:
           # Convert image to uint8 if needed
           pil_img = Image.fromarray(np.uint8(img))
-          pil_img = pil_img.resize(self.size, Image.BILINEAR)
+          pil_img = pil_img.resize((self.size, self.size), Image.BILINEAR)
           resized.append(np.array(pil_img))
       return np.stack(resized)
     
@@ -390,11 +391,14 @@ class PEEncoder(Encoder):
         x_np = np.asarray(x)
         x_np_resized = self.resize_batch_with_pillow(x_np)
         x_pt = torch.from_numpy(x_np_resized)
-        x_pt = x_pt.cuda()
+        x_pt = x_pt.half().cuda()
+        x_pt = x_pt.permute(0, 3, 1, 2)
+        print(x_pt.shape)
 
-        pt_output = self.model(x_pt)
+        output_pt = self.model(x_pt)
         # Ensure output is on CPU before converting back to NumPy for JAX
-        return pt_output.cpu().numpy()
+        output_np = output_pt.cpu().numpy()
+        return output_np.astype(np_bfloat16_dtype)
 
   def encode_image_obs(self, obs, bdims):
     imgs = [obs[k] for k in sorted(self.imgkeys)]
@@ -406,6 +410,7 @@ class PEEncoder(Encoder):
     x_reshaped = x.reshape((-1, *x.shape[bdims:]))
 
     result_shape_abstract = jax.ShapeDtypeStruct((x_reshaped.shape[0], 1024), x_reshaped.dtype)
+    print(result_shape_abstract)
     x_from_pytorch = jax.pure_callback(
             self._pe_call, # The Python function to call
             result_shape_abstract,    # An abstract JAX array representing the output shape and dtype
