@@ -58,7 +58,7 @@ defaults:
       }
     atari100kPE:
       {
-        size: [224, 224],
+        size: [64, 64],
         repeat: 4,
         sticky: False,
         gray: False,
