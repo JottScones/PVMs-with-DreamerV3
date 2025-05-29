@@ -136,7 +136,7 @@ defaults:
     debug: True
 
   jax:
-    platform: "cpu,cuda"
+    platform: cuda
     compute_dtype: bfloat16
     policy_devices: [0]
     train_devices: [0]
@@ -365,6 +365,7 @@ atari100k:
 atari100kPE:
   task: atari100kPE_pong
   run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
+  jax: { platform: "cuda,cpu" }
   agent:
     enc:
       typ: perception_encoder
