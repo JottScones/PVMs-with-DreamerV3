@@ -386,15 +386,13 @@ class PEEncoder(Encoder):
       return np.stack(resized)
     
   def _pe_call(self, x):
-    with torch.no_grad(), torch.autocast("cuda"): # Make autocast device agnostic
-        # Convert NumPy array (from JAX) to PyTorch tensor
-  
+    with torch.no_grad(), torch.autocast("cuda"):
         x_np = np.asarray(x)
-        pt_x = torch.from_numpy(x_np)
-        pt_x_resized = self.resize_batch_with_pillow(pt_x)
-        pt_x_resized = pt_x_resized.cuda()
+        x_np_resized = self.resize_batch_with_pillow(x_np)
+        x_pt = torch.from_numpy(x_np_resized)
+        x_pt = x_pt.cuda()
 
-        pt_output = self.model(pt_x)
+        pt_output = self.model(x_pt)
         # Ensure output is on CPU before converting back to NumPy for JAX
         return pt_output.cpu().numpy()
 
