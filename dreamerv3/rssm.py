@@ -393,7 +393,6 @@ class PEEncoder(Encoder):
         x_pt = torch.from_numpy(x_np_resized)
         x_pt = x_pt.half().cuda()
         x_pt = x_pt.permute(0, 3, 1, 2)
-        print(x_pt.shape)
 
         output_pt = self.model(x_pt)
         # Ensure output is on CPU before converting back to NumPy for JAX
@@ -410,7 +409,6 @@ class PEEncoder(Encoder):
     x_reshaped = x.reshape((-1, *x.shape[bdims:]))
 
     result_shape_abstract = jax.ShapeDtypeStruct((x_reshaped.shape[0], 1024), x_reshaped.dtype)
-    print(result_shape_abstract)
     x_from_pytorch = jax.pure_callback(
             self._pe_call, # The Python function to call
             result_shape_abstract,    # An abstract JAX array representing the output shape and dtype
