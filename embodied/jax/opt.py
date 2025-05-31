@@ -58,6 +58,7 @@ class Optimizer(nj.Module):
       grads = jax.tree.map(lambda x: x * invscale, grads)
 
     state = self.sub('state', nj.Tree, self.opt.init, params)
+    print(f"{grads} {params}")
     updates, new_state = self.opt.update(grads, state.read(), params)
     nj.context().update(optax.apply_updates(params, updates))
     state.write(new_state)
