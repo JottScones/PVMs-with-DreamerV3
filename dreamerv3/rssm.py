@@ -345,6 +345,10 @@ class Encoder(nj.Module):
     tokens = x.reshape((*bshape, *x.shape[1:]))
     entries = {}
     return carry, entries, tokens
+
+pe_torch = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True)
+pe_params = {k: t2j(v) for k, v in pe_torch.named_parameters()}
+pe_jax = t2j(pe_torch)
   
 class PEEncoder(Encoder):
   """
@@ -366,10 +370,6 @@ class PEEncoder(Encoder):
   def __init__(self, obs_space, **kw):
     super().__init__(obs_space, **kw)
 
-    model = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True)
-
-    self.params = {k: t2j(v) for k, v in model.named_parameters()}
-    self.model = t2j(model)
     
   def encode_image_obs(self, obs, bdims):
     imgs = [obs[k] for k in sorted(self.imgkeys)]
@@ -381,7 +381,7 @@ class PEEncoder(Encoder):
     x = x.reshape((-1, *x.shape[bdims:]))
     x = jax.image.resize(x, (x.shape[0], self.size, self.size, x.shape[-1]), "bilinear")
     x = jax.numpy.permute_dims(x, [0, 3, 1, 2])
-    x = self.model(x, state_dict=self.params)
+    x = pe_jax(x, state_dict=pe_params)
     x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x))
     x = x.reshape((x.shape[0], -1))
     return x
