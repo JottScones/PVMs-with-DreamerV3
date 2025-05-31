@@ -9,14 +9,14 @@ from ml_dtypes import bfloat16 as np_bfloat16_dtype
 import jax.numpy as jnp
 import ninjax as nj
 import numpy as np
+import flax.linen as jnn
 
-import torch
 import perception_models.core.vision_encoder.pe as pe
 
 from torch.nn import functional as F
 from PIL import Image
 
-from torch2jax import t2j
+from pytorch2jax import convert_pytnn_to_flax
 
 f32 = jnp.float32
 sg = jax.lax.stop_gradient
@@ -347,8 +347,11 @@ class Encoder(nj.Module):
     return carry, entries, tokens
 
 pe_torch = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True)
-pe_params = {k: t2j(v) for k, v in pe_torch.named_parameters()}
-pe_jax = t2j(pe_torch)
+flax_module, params = convert_pytnn_to_flax(pe_torch)
+class PEModule(jnn.Module):
+    @jnn.compact
+    def __call__(self, x):
+        return self.flax_module()(x)
   
 class PEEncoder(Encoder):
   """
@@ -382,7 +385,7 @@ class PEEncoder(Encoder):
     x = jax.image.resize(x, (x.shape[0], self.size, self.size, x.shape[-1]), "bilinear")
     x = jax.numpy.permute_dims(x, [0, 3, 1, 2])
     x = jax.numpy.astype(x, "float32")
-    x = pe_jax(x, state_dict=pe_params)
+    x = self.sub('pe', nj.FromFlax(PEModule))(x)
     x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x))
     x = x.reshape((x.shape[0], -1))
     return x
