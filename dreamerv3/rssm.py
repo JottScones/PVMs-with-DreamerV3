@@ -381,6 +381,7 @@ class PEEncoder(Encoder):
     x = x.reshape((-1, *x.shape[bdims:]))
     x = jax.image.resize(x, (x.shape[0], self.size, self.size, x.shape[-1]), "bilinear")
     x = jax.numpy.permute_dims(x, [0, 3, 1, 2])
+    x = jax.numpy.astype(x, "float32")
     x = pe_jax(x, state_dict=pe_params)
     x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x))
     x = x.reshape((x.shape[0], -1))
