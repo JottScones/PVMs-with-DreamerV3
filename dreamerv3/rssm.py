@@ -366,23 +366,11 @@ class PEEncoder(Encoder):
   def __init__(self, obs_space, **kw):
     super().__init__(obs_space, **kw)
 
-    model = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True).cuda()
+    model = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True)
 
+    self.params = {k: t2j(v) for k, v in model.named_parameters()}
     self.model = t2j(model)
     
-  def _pe_call(self, x):
-    with torch.no_grad(), torch.autocast("cuda"):
-        x_np = np.asarray(x)
-        x_np_resized = self.resize_batch_with_pillow(x_np)
-        x_pt = torch.from_numpy(x_np_resized)
-        x_pt = x_pt.half().cuda()
-        x_pt = x_pt.permute(0, 3, 1, 2)
-
-        output_pt = self.model(x_pt)
-        # Ensure output is on CPU before converting back to NumPy for JAX
-        output_np = output_pt.cpu().numpy()
-        return output_np.astype(np_bfloat16_dtype)
-
   def encode_image_obs(self, obs, bdims):
     imgs = [obs[k] for k in sorted(self.imgkeys)]
     assert all(x.dtype == jnp.uint8 for x in imgs)
@@ -391,9 +379,9 @@ class PEEncoder(Encoder):
     # and flatten the batch and time dimensions
     x = nn.cast(jnp.concatenate(imgs, -1), force=True) / 255 - 0.5
     x = x.reshape((-1, *x.shape[bdims:]))
-    x = jax.image.resize(x, (x.shape[:bdims], self.size, self.size, x.shape[-1]), method, antialias=True, precision=Precision.HIGHEST)
-    x = x.permute(0, 3, 1, 2)
-    x = self.model(self.resize_batch_with_pillow(x))
+    x = jax.image.resize(x, (x.shape[0], self.size, self.size, x.shape[-1]), "bilinear")
+    x = jax.numpy.permute_dims(x, [0, 3, 1, 2])
+    x = self.model(x, state_dict=self.params)
     x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x))
     x = x.reshape((x.shape[0], -1))
     return x
