@@ -349,9 +349,11 @@ class Encoder(nj.Module):
 pe_torch = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True)
 flax_module, params = convert_pytnn_to_flax(pe_torch)
 class PEModule(jnn.Module):
-    @jnn.compact
-    def __call__(self, x):
-        return self.flax_module()(x)
+  flax_module = flax_module
+
+  @jnn.compact
+  def __call__(self, x):
+      return self.flax_module()(x)
   
 class PEEncoder(Encoder):
   """
