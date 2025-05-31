@@ -367,11 +367,35 @@ class PEEncoder(Encoder):
     model = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True)  # Downloads from HF
     self.model = model.cuda()
   
+  def resize_batch_with_pillow(self, images):
+      """
+      Resize a batch of images using Pillow's bilinear interpolation.
+      
+      Parameters:
+          images (np.ndarray): Array of shape (B, H, W, C).
+          target_size (tuple): New size as (width, height).
+
+      Returns:
+          np.ndarray: Resized images with shape (B, target_height, target_width, C).
+      """
+      resized = []
+      for img in images:
+          # Convert image to uint8 if needed
+          pil_img = Image.fromarray(np.uint8(img))
+          pil_img = pil_img.resize((self.size, self.size), Image.BILINEAR)
+          resized.append(np.array(pil_img))
+      return np.stack(resized)
+    
   def _pe_call(self, x):
     with torch.no_grad(), torch.autocast("cuda"):
-        x_pt = torch.from_numpy(np.asarray(x))
+        x_np = np.asarray(x)
+        x_np_resized = self.resize_batch_with_pillow(x_np)
+        x_pt = torch.from_numpy(x_np_resized)
         x_pt = x_pt.half().cuda()
+        x_pt = x_pt.permute(0, 3, 1, 2)
+
         output_pt = self.model(x_pt)
+        # Ensure output is on CPU before converting back to NumPy for JAX
         output_np = output_pt.cpu().numpy()
         return output_np.astype(np_bfloat16_dtype)
 
@@ -382,15 +406,13 @@ class PEEncoder(Encoder):
     # Concatenate images along the last dimension (channel dimension) 
     # and flatten the batch and time dimensions
     x = nn.cast(jnp.concatenate(imgs, -1), force=True) / 255 - 0.5
-    x = x.reshape((-1, *x.shape[bdims:]))
-    x = jax.image.resize(x, (x.shape[0], self.size, self.size, x.shape[-1]), "bilinear")
-    x = jax.numpy.permute_dims(x, [0, 3, 1, 2])
+    x_reshaped = x.reshape((-1, *x.shape[bdims:]))
 
-    result_shape_abstract = jax.ShapeDtypeStruct((x.shape[0], 1024), x.dtype)
+    result_shape_abstract = jax.ShapeDtypeStruct((x_reshaped.shape[0], 1024), x_reshaped.dtype)
     x_from_pytorch = jax.pure_callback(
-            self._pe_call,           # The Python function to call
-            result_shape_abstract,   # An abstract JAX array representing the output shape and dtype
-            x,                       # Arguments to the callback function
+            self._pe_call, # The Python function to call
+            result_shape_abstract,    # An abstract JAX array representing the output shape and dtype
+            x_reshaped,               # Arguments to the callback function
             vectorized=True          # Set to True if your callback is vectorized for vmap
         )
 
