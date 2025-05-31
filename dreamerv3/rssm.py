@@ -16,6 +16,8 @@ import perception_models.core.vision_encoder.pe as pe
 from torch.nn import functional as F
 from PIL import Image
 
+from torch2jax import t2j
+
 f32 = jnp.float32
 sg = jax.lax.stop_gradient
 
@@ -364,8 +366,9 @@ class PEEncoder(Encoder):
   def __init__(self, obs_space, **kw):
     super().__init__(obs_space, **kw)
 
-    model = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True)  # Downloads from HF
-    self.model = model.cuda()
+    model = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True).cuda()
+
+    self.model = t2j(model)
   
   def resize_batch_with_pillow(self, images):
       """
@@ -406,18 +409,9 @@ class PEEncoder(Encoder):
     # Concatenate images along the last dimension (channel dimension) 
     # and flatten the batch and time dimensions
     x = nn.cast(jnp.concatenate(imgs, -1), force=True) / 255 - 0.5
-    x_reshaped = x.reshape((-1, *x.shape[bdims:]))
-
-    result_shape_abstract = jax.ShapeDtypeStruct((x_reshaped.shape[0], 1024), x_reshaped.dtype)
-    x_from_pytorch = jax.pure_callback(
-            self._pe_call, # The Python function to call
-            result_shape_abstract,    # An abstract JAX array representing the output shape and dtype
-            x_reshaped,               # Arguments to the callback function
-            vectorized=True          # Set to True if your callback is vectorized for vmap
-        )
-
-    x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x_from_pytorch))
-
+    x = x.reshape((-1, *x.shape[bdims:]))
+    x = self.model(self.resize_batch_with_pillow(x))
+    x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x))
     x = x.reshape((x.shape[0], -1))
     return x
 
