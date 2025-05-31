@@ -369,25 +369,6 @@ class PEEncoder(Encoder):
     model = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True).cuda()
 
     self.model = t2j(model)
-  
-  def resize_batch_with_pillow(self, images):
-      """
-      Resize a batch of images using Pillow's bilinear interpolation.
-      
-      Parameters:
-          images (np.ndarray): Array of shape (B, H, W, C).
-          target_size (tuple): New size as (width, height).
-
-      Returns:
-          np.ndarray: Resized images with shape (B, target_height, target_width, C).
-      """
-      resized = []
-      for img in images:
-          # Convert image to uint8 if needed
-          pil_img = Image.fromarray(np.uint8(img))
-          pil_img = pil_img.resize((self.size, self.size), Image.BILINEAR)
-          resized.append(np.array(pil_img))
-      return np.stack(resized)
     
   def _pe_call(self, x):
     with torch.no_grad(), torch.autocast("cuda"):
@@ -410,6 +391,8 @@ class PEEncoder(Encoder):
     # and flatten the batch and time dimensions
     x = nn.cast(jnp.concatenate(imgs, -1), force=True) / 255 - 0.5
     x = x.reshape((-1, *x.shape[bdims:]))
+    x = jax.image.resize(x, (x.shape[:bdims], self.size, self.size, x.shape[-1]), method, antialias=True, precision=Precision.HIGHEST)
+    x = x.permute(0, 3, 1, 2)
     x = self.model(self.resize_batch_with_pillow(x))
     x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x))
     x = x.reshape((x.shape[0], -1))
