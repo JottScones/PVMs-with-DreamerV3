@@ -16,8 +16,6 @@ import perception_models.core.vision_encoder.pe as pe
 from torch.nn import functional as F
 from PIL import Image
 
-from pytorch2jax import convert_pytnn_to_flax
-
 f32 = jnp.float32
 sg = jax.lax.stop_gradient
 
@@ -346,14 +344,87 @@ class Encoder(nj.Module):
     entries = {}
     return carry, entries, tokens
 
-pe_torch = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True)
-flax_module, params = convert_pytnn_to_flax(pe_torch)
-class PEModule(jnn.Module):
-  flax_module = flax_module
+  
+# pe_bridge.py  ──────────────────────────────────────────────────────────────
+import torch
+from functools import partial
 
-  @jnn.compact
-  def __call__(self, x):
-      return self.flax_module()(x)
+PE_TORCH = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True)
+# ---------------------------------------------------------------------------
+# Helpers that convert between JAX array tree  ⇄  Torch parameter list
+# ---------------------------------------------------------------------------
+def jax_params_from_torch(model=PE_TORCH):
+    return tuple(jnp.asarray(p.detach().cpu().numpy()) for p in model.parameters())
+
+def copy_jax_to_torch(jax_params, model=PE_TORCH):
+    with torch.no_grad():
+        for p_t, p_j in zip(model.parameters(), jax_params):
+            p_t.data.copy_(torch.from_numpy(np.asarray(p_j)))   # keep dtype
+
+@partial(jax.custom_vjp, nondiff_argnums=())
+def pe_apply(jax_params, imgs):
+    """imgs: (B,H,W,C) float32/16  –  returns (B,768)"""
+    def _fwd(params, x_np):
+        copy_jax_to_torch(params)
+        x_t = torch.as_tensor(x_np, device="cuda")
+        if x_t.ndim == 4:                           # NHWC → NCHW
+            x_t = x_t.permute(0, 3, 1, 2)
+        y = PE_TORCH(x_t).detach().cpu().numpy()
+        return y
+
+    y = jax.pure_callback(
+            _fwd,
+            jax.ShapeDtypeStruct((imgs.shape[0], 768), imgs.dtype),
+            jax_params, imgs,
+            vectorized=False)
+    return y
+
+def _pe_fwd(jax_params, imgs):
+    y = pe_apply(jax_params, imgs)
+    return y, (jax_params, imgs)
+
+def _pe_bwd(res, g):
+    jax_params, imgs = res
+
+    def _bwd(params, x_np, g_np):
+        copy_jax_to_torch(params)
+        x_t = torch.as_tensor(x_np, device="cuda", requires_grad=True)
+        if x_t.ndim == 4:
+            x_t = x_t.permute(0, 3, 1, 2)
+        y = PE_TORCH(x_t)                       # forward with grad
+        y.backward(torch.as_tensor(g_np, device="cuda"))
+        grad_x     = x_t.grad.detach().cpu().numpy()
+        grad_param = [p.grad.detach().cpu().numpy() for p in PE_TORCH.parameters()]
+        return tuple(grad_param), grad_x            # must be tuples
+
+    grad_param, grad_x = jax.pure_callback(
+            _bwd,
+            (tuple(jax.ShapeDtypeStruct(p.shape, p.dtype) for p in jax_params),
+             jax.ShapeDtypeStruct(imgs.shape, imgs.dtype)),
+            jax_params, imgs, g,
+            vectorized=False)
+    return (grad_param, grad_x)
+
+pe_apply.defvjp(_pe_fwd, _pe_bwd)
+
+class PerceptionEncoder(nj.Module):
+  def __init__(self, torch_model):
+      super().__init__()
+      # cache the *Torch* model only to convert once
+      self._torch_model = torch_model
+
+  # ----- forward pass ---------------------------------------------------
+  def __call__(self, image_batch):
+      # ① Lazily create JAX params on first call
+      tree = self.sub('params', nj.Tree, jax_params_from_torch, self._torch_model)  #    (args...)
+      params = tree.read()
+
+      # ② Pure functional call
+      return pe_apply(params, image_batch)
+
+  # optional helper so you can update from outside
+  def parameters(self):
+      return self.sub('params', nj.Tree).read()
   
 class PEEncoder(Encoder):
   """
@@ -387,150 +458,11 @@ class PEEncoder(Encoder):
     x = jax.image.resize(x, (x.shape[0], self.size, self.size, x.shape[-1]), "bilinear")
     x = jax.numpy.permute_dims(x, [0, 3, 1, 2])
     x = jax.numpy.astype(x, "float32")
-    x = self.sub('pe', nj.FromFlax(PEModule))(x)
+    x = self.sub('pe', PerceptionEncoder, PE_TORCH)(x)
     x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x))
     x = x.reshape((x.shape[0], -1))
     return x
 
-"""
-(dreamer) [swj24@gpu-q-5 dreamerv3]$ python dreamerv3/main.py --logdir ./logdir/pe_test --configs atari100kPE
----  ___                           __   ______ ---
---- |   \ _ _ ___ __ _ _ __  ___ _ \ \ / /__ / ---
---- | |) | '_/ -_) _` | '  \/ -_) '/\ V / |_ \ ---
---- |___/|_| \___\__,_|_|_|_\___|_|  \_/ |___/ ---
-Replica: 0 / 1
-Logdir: logdir/pe_test
-Run script: train
-A.L.E: Arcade Learning Environment (version 0.9.0+750d7f9)
-[Powered by Stella]
-Missing keys for loading vision encoder: []
-Unexpected keys for loading vision encoder: []
-Observations
-  image            Space(uint8, shape=(224, 224, 3), low=0, high=255)
-  reward           Space(float32, shape=(), low=-inf, high=inf)
-  is_first         Space(bool, shape=(), low=False, high=True)
-  is_last          Space(bool, shape=(), low=False, high=True)
-  is_terminal      Space(bool, shape=(), low=False, high=True)
-Actions
-  action           Space(int32, shape=(), low=0, high=6)
-Extras
-  consec           Space(int32, shape=(), low=-2147483648, high=2147483647)
-  stepid           Space(uint8, shape=(20,), low=0, high=255)
-  dyn/deter        Space(float32, shape=(8192,), low=-inf, high=inf)
-  dyn/stoch        Space(float32, shape=(32, 64), low=-inf, high=inf)
-JAX devices (1): [cuda:0]
-Policy devices: cuda:0
-Train devices:  cuda:0
-Initializing parameters...
-image
-image
-Optimizer opt has 300,954,888 params:
-   161,932,035 dec
-    92,338,176 dyn
-    12,850,431 val
-    12,595,206 pol
-    10,749,183 rew
-    10,488,833 con
-         1,024 enc
-Done initializing!
-Compiling 1 checkpoint groups...
-Largest checkpoint group: 3 GB
-Compiling train and report...
-image
-image
-Train cost analysis:
-  FLOPS:            5.4e+11
-  Memory (temp):    3.3e+10
-  Memory (inputs):  3.9e+09
-  Memory (outputs): 3.7e+09
-  Memory (code):    3.5e+06
-
-image
-Report cost analysis:
-  FLOPS:            8.2e+09
-  Memory (temp):    1.8e+09
-  Memory (inputs):  1.1e+09
-  Memory (outputs): 1.2e+08
-  Memory (code):    4.2e+05
-
-Done compiling!
-Did not find any checkpoint.
-Saving checkpoint: logdir/pe_test/ckpt/20250529T113411F867307
-Saved checkpoint.
-Start training loop
-E0529 11:34:21.985197 3294497 pjrt_stream_executor_client.cc:3067] Execution of replica 0 failed: INTERNAL: CustomCall failed: CpuCallback error: Traceback (most recent call last):
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 277, in <module>
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 69, in main
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/run/train.py", line 97, in train
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/core/driver.py", line 54, in __call__
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/core/driver.py", line 70, in _step
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/run/train.py", line 93, in <lambda>
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/contextlib.py", line 81, in inner
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/agent.py", line 238, in policy
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/traceback_util.py", line 180, in reraise_with_filtered_traceback
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/pjit.py", line 332, in cache_miss
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/pjit.py", line 190, in _python_pjit_helper
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/core.py", line 2782, in bind
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/core.py", line 443, in bind_with_trace
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/core.py", line 949, in process_primitive
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/pjit.py", line 1739, in _pjit_call_impl
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/pjit.py", line 1721, in call_impl_cache_miss
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/pjit.py", line 1675, in _pjit_call_impl_python
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/profiler.py", line 333, in wrapper
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/interpreters/pxla.py", line 1277, in __call__
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/interpreters/mlir.py", line 2777, in _wrapped_callback
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/callback.py", line 228, in _callback
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/callback.py", line 78, in pure_callback_impl
-RuntimeError: jax.pure_callback failed to find a local CPU device to place the inputs on. Make sure "cpu" is listed in --jax_platforms or the JAX_PLATFORMS environment variable.
-Traceback (most recent call last):
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 277, in <module>
-    main()
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 69, in main
-    embodied.run.train(
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/run/train.py", line 97, in train
-    driver(policy, steps=10)
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/core/driver.py", line 54, in __call__
-    step, episode = self._step(policy, step, episode)
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/core/driver.py", line 70, in _step
-    self.carry, acts, outs = policy(self.carry, obs, **self.kwargs)
-                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/run/train.py", line 93, in <lambda>
-    policy = lambda *args: agent.policy(*args, mode='train')
-                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/contextlib.py", line 81, in inner
-    return func(*args, **kwds)
-           ^^^^^^^^^^^^^^^^^^^
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/agent.py", line 238, in policy
-    carry, acts, outs = self._policy(
-                        ^^^^^^^^^^^^^
-jaxlib.xla_extension.XlaRuntimeError: INTERNAL: CustomCall failed: CpuCallback error: Traceback (most recent call last):
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 277, in <module>
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 69, in main
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/run/train.py", line 97, in train
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/core/driver.py", line 54, in __call__
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/core/driver.py", line 70, in _step
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/run/train.py", line 93, in <lambda>
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/contextlib.py", line 81, in inner
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/agent.py", line 238, in policy
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/traceback_util.py", line 180, in reraise_with_filtered_traceback
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/pjit.py", line 332, in cache_miss
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/pjit.py", line 190, in _python_pjit_helper
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/core.py", line 2782, in bind
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/core.py", line 443, in bind_with_trace
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/core.py", line 949, in process_primitive
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/pjit.py", line 1739, in _pjit_call_impl
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/pjit.py", line 1721, in call_impl_cache_miss
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/pjit.py", line 1675, in _pjit_call_impl_python
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/profiler.py", line 333, in wrapper
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/interpreters/pxla.py", line 1277, in __call__
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/interpreters/mlir.py", line 2777, in _wrapped_callback
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/callback.py", line 228, in _callback
-  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/callback.py", line 78, in pure_callback_impl
-RuntimeError: jax.pure_callback failed to find a local CPU device to place the inputs on. Make sure "cpu" is listed in --jax_platforms or the JAX_PLATFORMS environment variable.
---------------------
-For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.
-"""
 class Decoder(nj.Module):
 
   units: int = 1024
