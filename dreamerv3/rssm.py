@@ -391,25 +391,37 @@ def _pe_fwd(jax_params, imgs):
     y = pe_apply(jax_params, imgs)
     return y, (jax_params, imgs)
 
+# ---------- helper: build the result spec ---------------------------------
+def shape_spec_from(tree):
+  """Return a PyTree of ShapeDtypeStruct mirroring `tree`."""
+  return jax.tree_util.tree_map(lambda arr: jax.ShapeDtypeStruct(arr.shape, arr.dtype), tree)
+
+# ---------- backward rule --------------------------------------------------
 def _pe_bwd(res, g):
-    jax_params, imgs = res
+  params_dict, imgs = res          # <- SAME structure we put in res
 
-    def _bwd(params, x_np, g_np):
-        copy_jax_to_torch(params)
-        x_t = torch.as_tensor(x_np, device="cuda", requires_grad=True)
-        y = PE_TORCH(x_t)                       # forward with grad
-        y.backward(torch.as_tensor(g_np, device="cuda"))
-        grad_x     = x_t.grad.detach().cpu().numpy()
-        grad_param = [p.grad.detach().cpu().numpy() for p in PE_TORCH.parameters()]
-        return tuple(grad_param), grad_x            # must be tuples
+  # ---------- host-side backward that uses torch.autograd ----------------
+  def _bwd_host(p_dict, x_np, g_np):
+    copy_jax_to_torch(p_dict)               # 1. sync weights
+    x_t = torch.as_tensor(x_np, device="cuda", requires_grad=True)
+    y_t = PE_TORCH(x_t)                      # 2. forward
+    y_t.backward(torch.as_tensor(g_np, device="cuda"))
+    grad_x = x_t.grad.detach().cpu().numpy()
+    grad_p = {name: p.grad.detach().cpu().numpy()
+              for name, p in PE_TORCH.named_parameters()}
+    return grad_p, grad_x                    # <-- STRUCTURE: (dict, array)
 
-    grad_param, grad_x = jax.pure_callback(
-            _bwd,
-            (tuple(jax.ShapeDtypeStruct(p.shape, p.dtype) for p in jax_params.values()),
-             jax.ShapeDtypeStruct(imgs.shape, imgs.dtype)),
-            jax_params, imgs, g,
-            vectorized=False)
-    return (grad_param, grad_x)
+  # ---------- tell JAX what shape that host tuple will have --------------
+  grad_spec   = shape_spec_from(params_dict)           # dict-of-specs
+  result_spec = (grad_spec, jax.ShapeDtypeStruct(imgs.shape, imgs.dtype))
+
+  grad_param, grad_x = jax.pure_callback(
+    _bwd_host,
+    result_spec,              # <- exact mirror of returned PyTree
+    params_dict, imgs, g,
+    vectorized=False)
+
+  return (grad_param, grad_x)
 
 pe_apply.defvjp(_pe_fwd, _pe_bwd)
 
