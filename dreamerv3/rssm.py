@@ -459,6 +459,7 @@ class PEEncoder(Encoder):
     x = jax.numpy.permute_dims(x, [0, 3, 1, 2])
     x = jax.numpy.astype(x, "float32")
     x = self.sub('pe', PerceptionEncoder, PE_TORCH)(x)
+    x = jax.numpy.astype(x, np_bfloat16_dtype)
     x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x))
     x = x.reshape((x.shape[0], -1))
     return x
