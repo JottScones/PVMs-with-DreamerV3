@@ -367,14 +367,12 @@ def pe_apply(jax_params, imgs):
     def _fwd(params, x_np):
         copy_jax_to_torch(params)
         x_t = torch.as_tensor(x_np, device="cuda")
-        if x_t.ndim == 4:                           # NHWC → NCHW
-            x_t = x_t.permute(0, 3, 1, 2)
         y = PE_TORCH(x_t).detach().cpu().numpy()
         return y
 
     y = jax.pure_callback(
             _fwd,
-            jax.ShapeDtypeStruct((imgs.shape[0], 768), imgs.dtype),
+            jax.ShapeDtypeStruct((imgs.shape[0], 1024), imgs.dtype),
             jax_params, imgs,
             vectorized=False)
     return y
@@ -389,8 +387,6 @@ def _pe_bwd(res, g):
     def _bwd(params, x_np, g_np):
         copy_jax_to_torch(params)
         x_t = torch.as_tensor(x_np, device="cuda", requires_grad=True)
-        if x_t.ndim == 4:
-            x_t = x_t.permute(0, 3, 1, 2)
         y = PE_TORCH(x_t)                       # forward with grad
         y.backward(torch.as_tensor(g_np, device="cuda"))
         grad_x     = x_t.grad.detach().cpu().numpy()
