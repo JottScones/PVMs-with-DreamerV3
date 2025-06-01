@@ -360,7 +360,7 @@ class PerceptionEncoder(nj.Module):
   # ----- forward pass ---------------------------------------------------
   def __call__(self, image_batch):
       # Lazily create JAX params on first call
-      tree = self.sub('params', nj.Tree, pe_params, PE_TORCH)
+      tree = self.sub('params', nj.Tree, pe_params)
       params = tree.read()
 
       # Pure functional call
