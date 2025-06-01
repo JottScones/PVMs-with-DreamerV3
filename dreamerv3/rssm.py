@@ -15,6 +15,7 @@ import perception_models.core.vision_encoder.pe as pe
 
 from torch.nn import functional as F
 from PIL import Image
+from torch_jax_interop import torch_module_to_jax
 
 f32 = jnp.float32
 sg = jax.lax.stop_gradient
@@ -350,82 +351,7 @@ import torch
 from functools import partial
 
 PE_TORCH = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True).cuda()
-HIDDEN = PE_TORCH.width
-OUTPUT = PE_TORCH.output_dim
-# ---------------------------------------------------------------------------
-# Helpers that convert between JAX array tree  ⇄  Torch parameter list
-# ---------------------------------------------------------------------------
-def jax_params_from_torch(model=PE_TORCH):
-  with torch.no_grad():
-    return {name: jnp.asarray(p.detach().cpu().numpy())
-            for name, p in model.named_parameters()}
-
-def copy_jax_to_torch(jax_dict, model=PE_TORCH):
-  with torch.no_grad():
-    for name, p_t in model.named_parameters():
-      p_j = jax_dict[name]
-      if p_t.shape != p_j.shape:
-          raise ValueError(
-              f"Shape mismatch for {name}: torch {tuple(p_t.shape)} "
-              f"vs jax {tuple(p_j.shape)}")
-      # make a **writable** NumPy view
-      p_t.data.copy_(torch.from_numpy(np.asarray(p_j).copy()))
-
-@partial(jax.custom_vjp, nondiff_argnums=())
-def pe_apply(jax_params, imgs):
-    """imgs: (B,H,W,C) float32/16  –  returns (B,768)"""
-    def _fwd(params, x_jax):
-      copy_jax_to_torch(params)
-      x_np = np.asarray(x_jax)
-      x_t = torch.as_tensor(x_np, device="cuda")
-      with torch.autocast("cuda"):
-        y = PE_TORCH(x_t).detach().cpu().numpy()
-      return y
-
-    y = jax.pure_callback(
-            _fwd,
-            jax.ShapeDtypeStruct((imgs.shape[0], OUTPUT), imgs.dtype),
-            jax_params, imgs,
-            vectorized=False)
-    return y
-
-def _pe_fwd(jax_params, imgs):
-    y = pe_apply(jax_params, imgs)
-    return y, (jax_params, imgs)
-
-# ---------- helper: build the result spec ---------------------------------
-def shape_spec_from(tree):
-  """Return a PyTree of ShapeDtypeStruct mirroring `tree`."""
-  return jax.tree_util.tree_map(lambda arr: jax.ShapeDtypeStruct(arr.shape, arr.dtype), tree)
-
-# ---------- backward rule --------------------------------------------------
-def _pe_bwd(res, g):
-  params_dict, imgs = res          # <- SAME structure we put in res
-
-  # ---------- host-side backward that uses torch.autograd ----------------
-  def _bwd_host(p_dict, x_np, g_np):
-    copy_jax_to_torch(p_dict)               # 1. sync weights
-    x_t = torch.as_tensor(x_np, device="cuda", requires_grad=True)
-    y_t = PE_TORCH(x_t)                      # 2. forward
-    y_t.backward(torch.as_tensor(g_np, device="cuda"))
-    grad_x = x_t.grad.detach().cpu().numpy()
-    grad_p = {name: p.grad.detach().cpu().numpy()
-              for name, p in PE_TORCH.named_parameters()}
-    return grad_p, grad_x                    # <-- STRUCTURE: (dict, array)
-
-  # ---------- tell JAX what shape that host tuple will have --------------
-  grad_spec   = shape_spec_from(params_dict)           # dict-of-specs
-  result_spec = (grad_spec, jax.ShapeDtypeStruct(imgs.shape, imgs.dtype))
-
-  grad_param, grad_x = jax.pure_callback(
-    _bwd_host,
-    result_spec,              # <- exact mirror of returned PyTree
-    params_dict, imgs, g,
-    vectorized=False)
-
-  return (grad_param, grad_x)
-
-pe_apply.defvjp(_pe_fwd, _pe_bwd)
+pe_apply, pe_params = torch_module_to_jax(PE_TORCH, example_output=torch.zeros())
 
 class PerceptionEncoder(nj.Module):
   def __init__(self):
@@ -434,7 +360,7 @@ class PerceptionEncoder(nj.Module):
   # ----- forward pass ---------------------------------------------------
   def __call__(self, image_batch):
       # Lazily create JAX params on first call
-      tree = self.sub('params', nj.Tree, jax_params_from_torch, PE_TORCH)
+      tree = self.sub('params', nj.Tree, pe_params, PE_TORCH)
       params = tree.read()
 
       # Pure functional call
