@@ -405,7 +405,7 @@ def _pe_bwd(res, g):
 
     grad_param, grad_x = jax.pure_callback(
             _bwd,
-            (tuple(jax.ShapeDtypeStruct(p.shape, p.dtype) for p in jax_params),
+            (tuple(jax.ShapeDtypeStruct(p.shape, p.dtype) for p in jax_params.values()),
              jax.ShapeDtypeStruct(imgs.shape, imgs.dtype)),
             jax_params, imgs, g,
             vectorized=False)
