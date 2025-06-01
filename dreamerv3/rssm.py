@@ -349,12 +349,15 @@ class Encoder(nj.Module):
 import torch
 from functools import partial
 
-PE_TORCH = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True)
+PE_TORCH = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True).cuda()
+HIDDEN = PE_TORCH.width
+OUTPUT = PE_TORCH.output_dim
 # ---------------------------------------------------------------------------
 # Helpers that convert between JAX array tree  ⇄  Torch parameter list
 # ---------------------------------------------------------------------------
 def jax_params_from_torch(model=PE_TORCH):
-    return tuple(jnp.asarray(p.detach().cpu().numpy()) for p in model.parameters())
+    with torch.no_grad():
+        return tuple(jnp.asarray(p.detach().cpu().numpy()) for p in model.parameters())
 
 def copy_jax_to_torch(jax_params, model=PE_TORCH):
     with torch.no_grad():
@@ -372,7 +375,7 @@ def pe_apply(jax_params, imgs):
 
     y = jax.pure_callback(
             _fwd,
-            jax.ShapeDtypeStruct((imgs.shape[0], 1024), imgs.dtype),
+            jax.ShapeDtypeStruct((imgs.shape[0], OUTPUT), imgs.dtype),
             jax_params, imgs,
             vectorized=False)
     return y
@@ -404,23 +407,18 @@ def _pe_bwd(res, g):
 pe_apply.defvjp(_pe_fwd, _pe_bwd)
 
 class PerceptionEncoder(nj.Module):
-  def __init__(self, torch_model):
+  def __init__(self):
       super().__init__()
-      # cache the *Torch* model only to convert once
-      self._torch_model = torch_model
 
   # ----- forward pass ---------------------------------------------------
   def __call__(self, image_batch):
-      # ① Lazily create JAX params on first call
-      tree = self.sub('params', nj.Tree, jax_params_from_torch, self._torch_model)  #    (args...)
+      # Lazily create JAX params on first call
+      tree = self.sub('params', nj.Tree, jax_params_from_torch)
       params = tree.read()
 
-      # ② Pure functional call
+      # Pure functional call
       return pe_apply(params, image_batch)
 
-  # optional helper so you can update from outside
-  def parameters(self):
-      return self.sub('params', nj.Tree).read()
   
 class PEEncoder(Encoder):
   """
@@ -454,7 +452,9 @@ class PEEncoder(Encoder):
     x = jax.image.resize(x, (x.shape[0], self.size, self.size, x.shape[-1]), "bilinear")
     x = jax.numpy.permute_dims(x, [0, 3, 1, 2])
     x = jax.numpy.astype(x, "float32")
-    x = self.sub('pe', PerceptionEncoder, PE_TORCH)(x)
+
+    x = self.sub('pe', PerceptionEncoder)(x)
+
     x = jax.numpy.astype(x, np_bfloat16_dtype)
     x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x))
     x = x.reshape((x.shape[0], -1))
