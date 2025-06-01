@@ -356,13 +356,20 @@ OUTPUT = PE_TORCH.output_dim
 # Helpers that convert between JAX array tree  ⇄  Torch parameter list
 # ---------------------------------------------------------------------------
 def jax_params_from_torch(model=PE_TORCH):
-    with torch.no_grad():
-        return tuple(jnp.asarray(p.detach().cpu().numpy()) for p in model.parameters())
+  with torch.no_grad():
+    return {name: jnp.asarray(p.detach().cpu().numpy())
+            for name, p in model.named_parameters()}
 
-def copy_jax_to_torch(jax_params, model=PE_TORCH):
-    with torch.no_grad():
-        for p_t, p_j in zip(model.parameters(), jax_params):
-            p_t.data.copy_(torch.from_numpy(np.asarray(p_j)))   # keep dtype
+def copy_jax_to_torch(jax_dict, model=PE_TORCH):
+  with torch.no_grad():
+    for name, p_t in model.named_parameters():
+      p_j = jax_dict[name]
+      if p_t.shape != p_j.shape:
+          raise ValueError(
+              f"Shape mismatch for {name}: torch {tuple(p_t.shape)} "
+              f"vs jax {tuple(p_j.shape)}")
+      # make a **writable** NumPy view
+      p_t.data.copy_(torch.from_numpy(np.asarray(p_j).copy()))
 
 @partial(jax.custom_vjp, nondiff_argnums=())
 def pe_apply(jax_params, imgs):
@@ -413,7 +420,7 @@ class PerceptionEncoder(nj.Module):
   # ----- forward pass ---------------------------------------------------
   def __call__(self, image_batch):
       # Lazily create JAX params on first call
-      tree = self.sub('params', nj.Tree, jax_params_from_torch)
+      tree = self.sub('params', nj.Tree, jax_params_from_torch, PE_TORCH)
       params = tree.read()
 
       # Pure functional call
