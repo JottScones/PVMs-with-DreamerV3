@@ -351,7 +351,8 @@ import torch
 from functools import partial
 
 PE_TORCH = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True).cuda()
-pe_apply, pe_params = torch_module_to_jax(PE_TORCH, example_output=torch.zeros())
+torchexample = torch.zeros(1024, device="cuda")
+pe_apply, pe_params = torch_module_to_jax(PE_TORCH, example_output=torchexample)
 
 class PerceptionEncoder(nj.Module):
   def __init__(self):
@@ -360,7 +361,7 @@ class PerceptionEncoder(nj.Module):
   # ----- forward pass ---------------------------------------------------
   def __call__(self, image_batch):
       # Lazily create JAX params on first call
-      tree = self.sub('params', nj.Tree, pe_params)
+      tree = self.sub('params', nj.Tree, lambda: pe_params)
       params = tree.read()
 
       # Pure functional call
