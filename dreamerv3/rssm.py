@@ -375,11 +375,12 @@ def copy_jax_to_torch(jax_dict, model=PE_TORCH):
 def pe_apply(jax_params, imgs):
     """imgs: (B,H,W,C) float32/16  –  returns (B,768)"""
     def _fwd(params, x_jax):
-        copy_jax_to_torch(params)
-        x_np = np.asarray(x_jax)
-        x_t = torch.as_tensor(x_np, device="cuda")
+      copy_jax_to_torch(params)
+      x_np = np.asarray(x_jax)
+      x_t = torch.as_tensor(x_np, device="cuda")
+      with torch.autocast("cuda"):
         y = PE_TORCH(x_t).detach().cpu().numpy()
-        return y
+      return y
 
     y = jax.pure_callback(
             _fwd,
