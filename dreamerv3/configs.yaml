@@ -221,6 +221,17 @@ defaults:
           winit: trunc_normal_in,
           symlog: True,
         }
+      dino:
+        {
+          depth: 64,
+          mults: [2, 3, 4, 4],
+          layers: 3,
+          units: 1024,
+          act: silu,
+          norm: rms,
+          winit: trunc_normal_in,
+          symlog: True,
+        }
     dec:
       typ: simple
       simple:
