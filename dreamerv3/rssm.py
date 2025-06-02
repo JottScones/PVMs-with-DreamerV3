@@ -422,6 +422,28 @@ class PEEncoder(Encoder):
     x = x.reshape((x.shape[0], -1))
     return x
 
+
+_DINOV2_MODULE = FlaxDinov2Model.from_pretrained(
+    "facebook/dinov2-small",            # pick any checkpoint
+    from_pt=True,                       # HF PyTorch → Flax conversion
+)
+class DinoEncoder(nj.Module):
+  """Thin wrapper that registers Dinov2 parameters in the Ninjax tree."""
+  def __init__(self):
+    # Capture the *structure* of the pretrained params once
+    self._init_params = _DINOV2_MODULE.params
+
+  def __call__(self, x, *, train: bool):
+    # 1) Retrieve or create the param tree inside Ninjax
+    params = nj.variable(
+        'params',               # <- contributes to Dreamer gradients
+        'dino',                 # unique name
+        lambda: self._init_params
+    )
+  
+    out = _DINOV2_MODULE.apply({'params': params}, x, train=train)
+    return out.last_hidden_state
+
 class DINOv2Encoder(Encoder):
   """
   Use facebook perception encoder to encode image observation producing a single 1024 vector.
@@ -441,8 +463,7 @@ class DINOv2Encoder(Encoder):
   def __init__(self, obs_space, **kw):
     super().__init__(obs_space, **kw)
 
-    model = FlaxDinov2Model.from_pretrained("facebook/dinov2-small", from_pt=True)
-    self.dino = self.sub('dino_enc', nj.FromFlax, model)
+    self.dino = self.sub('dino_enc', DinoEncoder)
   
   def encode_image_obs(self, obs, bdims):
     K = self.kernel
@@ -453,7 +474,7 @@ class DINOv2Encoder(Encoder):
     x = x.reshape((-1, *x.shape[bdims:]))
 
     # Forward pass through the image encoder
-    x = self.dino(x).last_hidden_state
+    x = self.dino(x)
 
     # Apply activation and normalization
     x = nn.act(self.act)(self.sub(f'cnn{i}norm', nn.Norm, self.norm)(x))
