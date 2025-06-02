@@ -425,7 +425,6 @@ class PEEncoder(Encoder):
 
 _DINOV2_MODULE = FlaxDinov2Model.from_pretrained(
     "facebook/dinov2-small",            # pick any checkpoint
-    from_pt=True,                       # HF PyTorch → Flax conversion
 )
 class DinoEncoder(nj.Module):
   """Thin wrapper that registers Dinov2 parameters in the Ninjax tree."""
@@ -477,7 +476,7 @@ class DINOv2Encoder(Encoder):
     x = self.dino(x)
 
     # Apply activation and normalization
-    x = nn.act(self.act)(self.sub(f'cnn{i}norm', nn.Norm, self.norm)(x))
+    x = nn.act(self.act)(self.sub(f'dino{i}norm', nn.Norm, self.norm)(x))
 
     assert 3 <= x.shape[-3] <= 16, x.shape
     assert 3 <= x.shape[-2] <= 16, x.shape
