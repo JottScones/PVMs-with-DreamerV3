@@ -350,22 +350,32 @@ class Encoder(nj.Module):
 import torch
 from functools import partial
 
+# Create a representative example input for tracing the PyTorch model
+# Batch size 1, 3 color channels, 224x224 image size, float32 dtype, on CUDA
 PE_TORCH = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True).cuda()
-torchexample = torch.zeros(64, 1024, device="cuda")
-pe_apply, pe_params = torch_module_to_jax(PE_TORCH, example_output=torchexample)
+_TORCH_EXAMPLE_OUTPUT = torch.zeros(64, 1024, device="cuda")
+
+# Convert PyTorch model to JAX function and parameters (once)
+_PE_APPLY_JAX_GLOBAL, _PE_PARAMS_JAX_GPU_GLOBAL = torch_module_to_jax(
+    PE_TORCH,
+    example_output=_TORCH_EXAMPLE_OUTPUT
+)
+
+# Create a CPU version of the JAX parameters for initialization
+# This helps avoid disallowed device-to-host transfers during JAX's init phase
+_PE_PARAMS_JAX_CPU_GLOBAL = jax.tree_util.tree_map(
+    lambda x: jax.device_put(x, jax.devices('cpu')[0]),
+    _PE_PARAMS_JAX_GPU_GLOBAL
+)
 
 class PerceptionEncoder(nj.Module):
   def __init__(self):
       super().__init__()
+      self.pe_params_tree = self.sub('pe_torch_params', nj.Tree, lambda: _PE_PARAMS_JAX_CPU_GLOBAL)
 
-  # ----- forward pass ---------------------------------------------------
   def __call__(self, image_batch):
-      # Lazily create JAX params on first call
-      tree = self.sub('params', nj.Tree, lambda: pe_params)
-      params = tree.read()
-
-      # Pure functional call
-      return pe_apply(params, image_batch)
+      pe_params_for_call = self.pe_params_tree.read()
+      return _PE_APPLY_JAX_GLOBAL(pe_params_for_call, image_batch)
 
   
 class PEEncoder(Encoder):
@@ -387,6 +397,7 @@ class PEEncoder(Encoder):
 
   def __init__(self, obs_space, **kw):
     super().__init__(obs_space, **kw)
+    self.pe_module = self.sub('pe_module_instance', PerceptionEncoder)
 
     
   def encode_image_obs(self, obs, bdims):
@@ -401,7 +412,7 @@ class PEEncoder(Encoder):
     x = jax.numpy.permute_dims(x, [0, 3, 1, 2])
     x = jax.numpy.astype(x, "float32")
 
-    x = self.sub('pe', PerceptionEncoder)(x)
+    x = self.pe_module(x)
 
     x = jax.numpy.astype(x, np_bfloat16_dtype)
     x = nn.act(self.act)(self.sub(f'pe_norm', nn.Norm, self.norm)(x))
