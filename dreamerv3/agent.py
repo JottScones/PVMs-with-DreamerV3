@@ -41,6 +41,7 @@ class Agent(embodied.jax.Agent):
     self.enc = {
         'simple': rssm.Encoder,
         'perception_encoder': rssm.PEEncoder,
+        'dino': rssm.DINOv2Encoder
     }[config.enc.typ](enc_space, **config.enc[config.enc.typ], name='enc')
     self.dyn = {
         'rssm': rssm.RSSM,
