@@ -351,7 +351,7 @@ import torch
 from functools import partial
 
 PE_TORCH = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True).cuda()
-torchexample = torch.zeros(1024, device="cuda")
+torchexample = torch.zeros(64, 1024, device="cuda")
 pe_apply, pe_params = torch_module_to_jax(PE_TORCH, example_output=torchexample)
 
 class PerceptionEncoder(nj.Module):
@@ -556,3 +556,65 @@ class Decoder(nj.Module):
 
     entries = {}
     return carry, entries, recons
+
+""""
+Traceback (most recent call last):
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 277, in <module>
+    main()
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 69, in main
+    embodied.run.train(
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/run/train.py", line 11, in train
+    agent = make_agent()
+            ^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 138, in make_agent
+    return Agent(obs_space, act_space, elements.Config(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/agent.py", line 47, in __new__
+    outer.__init__(model, obs_space, act_space, config, jaxcfg)
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/agent.py", line 113, in __init__
+    self.params, self.train_params_sharding = self._init_params()
+                                              ^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/agent.py", line 437, in _init_params
+    params, params_sharding = transform.init(
+                              ^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/transform.py", line 50, in init
+    params_shapes = fn.eval_shape(*dummy_inputs)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/transform.py", line 44, in fn
+    params, _ = inner(params, *args, seed=seed)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/transform.py", line 34, in wrapper
+    state, out = fun(*args, create=True, modify=True, ignore=True, **kwargs)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/ninjax/ninjax.py", line 41, in hidewrapper
+    raise e
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/agent.py", line 160, in train
+    metrics, (carry, entries, outs, mets) = self.opt(
+                                            ^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/opt.py", line 43, in __call__
+    loss, params, grads, aux = nj.grad(
+                               ^^^^^^^^
+  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/contextlib.py", line 81, in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/jax/opt.py", line 35, in lossfn2
+    outs = lossfn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/agent.py", line 188, in loss
+    enc_carry, enc_entries, tokens = self.enc(
+                                     ^^^^^^^^^
+  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/rssm.py", line 344, in __call__
+    tokens = x.reshape((*bshape, *x.shape[1:]))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/numpy/array_methods.py", line 1056, in meth
+    return getattr(self.aval, name).fun(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/numpy/array_methods.py", line 305, in _reshape
+    newshape = _compute_newshape(self, args[0] if len(args) == 1 else args)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swj24/.conda/envs/dreamer/lib/python3.11/site-packages/jax/_src/numpy/array_methods.py", line 466, in _compute_newshape
+    raise TypeError(f"cannot reshape array of shape {arr.shape} (size {arr.size}) "
+TypeError: cannot reshape array of shape (1, 1024) (size 1024) into shape (1, 64, 1024) (size 65536)
+Exception happened inside Ninjax scope 'enc'.
+--------------------
+"""
