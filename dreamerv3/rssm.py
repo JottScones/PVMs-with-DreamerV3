@@ -476,7 +476,7 @@ class DINOv2Encoder(Encoder):
     x = self.dino(x, train=training)
 
     # Apply activation and normalization
-    x = nn.act(self.act)(self.sub(f'dino{i}norm', nn.Norm, self.norm)(x))
+    x = nn.act(self.act)(self.sub(f'dino_norm', nn.Norm, self.norm)(x))
 
     assert 3 <= x.shape[-3] <= 16, x.shape
     assert 3 <= x.shape[-2] <= 16, x.shape
