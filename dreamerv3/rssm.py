@@ -460,6 +460,7 @@ class DINOv2Encoder(Encoder):
 
   def __init__(self, obs_space, **kw):
     super().__init__(obs_space, **kw)
+    self.image_processor = AutoImageProcessor.from_pretrained("facebook/dinov2-small")
   
   def encode_image_obs(self, obs, bdims, training=False):
     K = self.kernel
@@ -470,6 +471,7 @@ class DINOv2Encoder(Encoder):
     x = x.reshape((-1, *x.shape[bdims:]))
 
     # Forward pass through the image encoder
+    x = self.image_processor(images=x, return_tensors="np")
     x = self.sub('dino_enc', DinoEncoder)(x, train=training)
 
     # Apply activation and normalization
