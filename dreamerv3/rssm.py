@@ -440,8 +440,7 @@ class DinoEncoder(nj.Module):
     ).read()
   
     # (Batch, Sequence, Hidden Size)
-    out = _DINOV2_MODULE(x, train=train, params=params).last_hidden_state
-    out = out.reshape(out[0], -1)
+    out = _DINOV2_MODULE(x, train=train, params=params).pooler_output
     return out
 
 RESIZE = 224
