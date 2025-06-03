@@ -447,6 +447,28 @@ CROP_SIZE = 224
 MEAN = jnp.array([0.485, 0.456, 0.406], dtype=jnp.float32)
 STD  = jnp.array([0.229, 0.224, 0.225], dtype=jnp.float32)
 
+def preprocess_image(img):
+  # resize smallest dimension to 256
+  h, w = img.shape[:2]
+  scale = RESIZE_SHORT_EDGE / jnp.minimum(h, w)
+  newh, neww = (jnp.round(jnp.array([h, w]) * scale)).astype(jnp.int32)
+  img = img.astype(jnp.float32)  
+  resized_img = jax.image.resize(img, (newh, neww, 3), method="cubic") 
+
+  # Central Crop
+  h, w = resized_img.shape[:2]
+  top  = (h - CROP_SIZE) // 2
+  left = (w - CROP_SIZE) // 2
+  cropped_image = jax.lax.dynamic_slice(resized_img, (top, left, 0), (CROP_SIZE, CROP_SIZE, 3))
+
+  # Rescale
+  cropped_image = cropped_image / 255.0                   # rescale
+  cropped_image = (cropped_image - MEAN) / STD  # normalize
+
+  return cropped_image
+
+preprocess_images = jax.vmap(preprocess_image, in_axes=0)
+
 class DINOv2Encoder(Encoder):
   """
   Use facebook perception encoder to encode image observation producing a single 1024 vector.
@@ -467,25 +489,6 @@ class DINOv2Encoder(Encoder):
     super().__init__(obs_space, **kw)
 
 
-  def preprocess_images(self, imgs):
-    # resize smallest dimension to 256
-    h, w = imgs[0].shape[:2]
-    scale = RESIZE_SHORT_EDGE / jnp.minimum(h, w)
-    newh, neww = (jnp.round(jnp.array([h, w]) * scale)).astype(jnp.int32)
-    imgs = imgs.astype(jnp.float32)  
-    resized_imgs = jax.image.resize(imgs, (newh, neww, 3), method="cubic") 
-
-    # Central Crop
-    h, w = resized_imgs[0].shape[:2]
-    top  = (h - CROP_SIZE) // 2
-    left = (w - CROP_SIZE) // 2
-    cropped_images = jax.lax.dynamic_slice(resized_imgs, (top, left, 0), (CROP_SIZE, CROP_SIZE, 3))
-
-    # Rescale
-    cropped_images = cropped_images / 255.0                   # rescale
-    cropped_images = (cropped_images - MEAN) / STD  # normalize
-
-    return cropped_images
   
   def encode_image_obs(self, obs, bdims, training=False):
     imgs = [obs[k] for k in sorted(self.imgkeys)]
@@ -493,7 +496,7 @@ class DINOv2Encoder(Encoder):
 
     x = nn.cast(jnp.concatenate(imgs, -1), force=True)
     x = x.reshape((-1, *x.shape[bdims:]))
-    x = self.preprocess_images(x)
+    x = preprocess_images(x)
 
     # Forward pass through the image encoder
     x = self.sub('dino_enc', DinoEncoder)(x, train=training)
