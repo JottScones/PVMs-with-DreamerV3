@@ -435,12 +435,11 @@ class DinoEncoder(nj.Module):
   def __call__(self, x, *, train: bool):
     # 1) Retrieve or create the param tree inside Ninjax
     params = nj.Variable(
-        'params',               # <- contributes to Dreamer gradients
-        'dino',                 # unique name
-        lambda: self._init_params
-    )
+        lambda: self._init_params,
+        name='dino',                 # unique name
+    ).read()
   
-    out = _DINOV2_MODULE.apply({'params': params}, x, train=train)
+    out = _DINOV2_MODULE(x, train=train, params=params)
     return out.last_hidden_state
 
 class DINOv2Encoder(Encoder):
