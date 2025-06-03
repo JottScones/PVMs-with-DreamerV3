@@ -461,8 +461,6 @@ class DINOv2Encoder(Encoder):
 
   def __init__(self, obs_space, **kw):
     super().__init__(obs_space, **kw)
-
-    self.dino = self.sub('dino_enc', DinoEncoder)
   
   def encode_image_obs(self, obs, bdims, training=False):
     K = self.kernel
@@ -473,7 +471,7 @@ class DINOv2Encoder(Encoder):
     x = x.reshape((-1, *x.shape[bdims:]))
 
     # Forward pass through the image encoder
-    x = self.dino(x, train=training)
+    x = self.sub('dino_enc', DinoEncoder)(x, train=training)
 
     # Apply activation and normalization
     x = nn.act(self.act)(self.sub(f'dino_norm', nn.Norm, self.norm)(x))
