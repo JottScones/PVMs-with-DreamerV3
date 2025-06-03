@@ -288,7 +288,7 @@ class Encoder(nj.Module):
     
     return x
   
-  def encode_image_obs(self, obs, bdims):
+  def encode_image_obs(self, obs, bdims, training=False):
     K = self.kernel
     imgs = [obs[k] for k in sorted(self.imgkeys)]
     assert all(x.dtype == jnp.uint8 for x in imgs)
@@ -333,7 +333,7 @@ class Encoder(nj.Module):
       outs.append(x)
 
     if self.imgkeys:
-      x = self.encode_image_obs(obs, bdims)
+      x = self.encode_image_obs(obs, bdims, training)
       # Store output
       outs.append(x)
 
@@ -400,7 +400,7 @@ class PEEncoder(Encoder):
         output_np = output_pt.cpu().numpy()
         return output_np.astype(np_bfloat16_dtype)
 
-  def encode_image_obs(self, obs, bdims):
+  def encode_image_obs(self, obs, bdims, training=False):
     imgs = [obs[k] for k in sorted(self.imgkeys)]
     assert all(x.dtype == jnp.uint8 for x in imgs)
 
@@ -464,7 +464,7 @@ class DINOv2Encoder(Encoder):
 
     self.dino = self.sub('dino_enc', DinoEncoder)
   
-  def encode_image_obs(self, obs, bdims):
+  def encode_image_obs(self, obs, bdims, training=False):
     K = self.kernel
     imgs = [obs[k] for k in sorted(self.imgkeys)]
     assert all(x.dtype == jnp.uint8 for x in imgs)
@@ -473,7 +473,7 @@ class DINOv2Encoder(Encoder):
     x = x.reshape((-1, *x.shape[bdims:]))
 
     # Forward pass through the image encoder
-    x = self.dino(x, train=True)
+    x = self.dino(x, train=training)
 
     # Apply activation and normalization
     x = nn.act(self.act)(self.sub(f'dino{i}norm', nn.Norm, self.norm)(x))
