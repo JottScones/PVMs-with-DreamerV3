@@ -444,10 +444,11 @@ class DinoEncoder(nj.Module):
     return out
 
 RESIZE = 224
-MEAN = jnp.array([0.485, 0.456, 0.406], dtype=jnp.float32)
-STD  = jnp.array([0.229, 0.224, 0.225], dtype=jnp.float32)
+MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 def preprocess_images(imgs):
+  imgs = imgs.astype(jnp.float32) 
   resized_imgs = jax.image.resize(imgs, (imgs.shape[0], RESIZE, RESIZE, 3), method="cubic") 
   # Rescale
   resized_imgs = resized_imgs / 255.0          # rescale
