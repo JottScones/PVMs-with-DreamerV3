@@ -439,8 +439,10 @@ class DinoEncoder(nj.Module):
         name='dino',                 # unique name
     ).read()
   
-    out = _DINOV2_MODULE(x, train=train, params=params)
-    return out.last_hidden_state
+    # (Batch, Sequence, Hidden Size)
+    out = _DINOV2_MODULE(x, train=train, params=params).last_hidden_state
+    out = out.reshape(out[0], -1)
+    return out
 
 RESIZE = 224
 MEAN = jnp.array([0.485, 0.456, 0.406], dtype=jnp.float32)
@@ -483,7 +485,7 @@ class DINOv2Encoder(Encoder):
     x = jax.numpy.permute_dims(x, (0, 3, 1, 2))
 
     # Forward pass through the image encoder
-    x = self.sub('dino_enc', DinoEncoder)(x, train=training).last_hidden_state
+    x = self.sub('dino_enc', DinoEncoder)(x, train=training)
 
     # Apply activation and normalization
     x = nn.act(self.act)(self.sub(f'dino_norm', nn.Norm, self.norm)(x))
