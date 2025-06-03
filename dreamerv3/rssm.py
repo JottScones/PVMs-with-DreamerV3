@@ -442,26 +442,10 @@ class DinoEncoder(nj.Module):
     out = _DINOV2_MODULE(x, train=train, params=params)
     return out.last_hidden_state
 
-
-
-def _resize_short_side(img: jnp.ndarray, target: int = _SHORT_EDGE) -> jnp.ndarray:
-    """Resize so that min(H, W) == target, keep aspect ratio."""
-
-def _center_crop(img: jnp.ndarray, size: int = _CROP_SIZE) -> jnp.ndarray:
-
-def dino_preprocess_uint8(img_u8: jnp.ndarray) -> jnp.ndarray:
-    """
-    Args
-    ----
-    img_u8 : uint8 DeviceArray [H, W, 3] in 0-255.
-
-    Returns
-    -------
-    float32 DeviceArray [224, 224, 3] normalised for DINO.
-    """
-    img = img / 255.0                       # rescale
-    img = (img - _MEAN) / _STD             # normalize
-    return img
+RESIZE_SHORT_EDGE = 256
+CROP_SIZE = 224
+MEAN = jnp.array([0.485, 0.456, 0.406], dtype=jnp.float32)
+STD  = jnp.array([0.229, 0.224, 0.225], dtype=jnp.float32)
 
 class DINOv2Encoder(Encoder):
   """
@@ -482,28 +466,24 @@ class DINOv2Encoder(Encoder):
   def __init__(self, obs_space, **kw):
     super().__init__(obs_space, **kw)
 
-    self.RESIZE_SHORT_EDGE = 256
-    self.CROP_SIZE = 224
-    self.MEAN = jnp.array([0.485, 0.456, 0.406], dtype=jnp.float32)
-    self.STD  = jnp.array([0.229, 0.224, 0.225], dtype=jnp.float32)
 
   def preprocess_images(self, imgs):
     # resize smallest dimension to 256
     h, w = imgs[0].shape[:2]
-    scale = self.RESIZE_SHORT_EDGE / jnp.minimum(h, w)
+    scale = RESIZE_SHORT_EDGE / jnp.minimum(h, w)
     newh, neww = (jnp.round(jnp.array([h, w]) * scale)).astype(jnp.int32)
     imgs = imgs.astype(jnp.float32)  
     resized_imgs = jax.image.resize(imgs, (newh, neww, 3), method="cubic") 
 
     # Central Crop
     h, w = resized_imgs[0].shape[:2]
-    top  = (h - self.CROP_SIZE) // 2
-    left = (w - self.CROP_SIZE) // 2
-    cropped_images = jax.lax.dynamic_slice(resized_imgs, (top, left, 0), (self.CROP_SIZE, self.CROP_SIZE, 3))
+    top  = (h - CROP_SIZE) // 2
+    left = (w - CROP_SIZE) // 2
+    cropped_images = jax.lax.dynamic_slice(resized_imgs, (top, left, 0), (CROP_SIZE, CROP_SIZE, 3))
 
     # Rescale
-    cropped_images = cropped_images / 255.0                       # rescale
-    cropped_images = (cropped_images - self.MEAN) / self.STD             # normalize
+    cropped_images = cropped_images / 255.0                   # rescale
+    cropped_images = (cropped_images - MEAN) / STD  # normalize
 
     return cropped_images
   
