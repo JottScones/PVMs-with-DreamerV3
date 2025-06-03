@@ -424,7 +424,7 @@ class PEEncoder(Encoder):
 
 
 _DINOV2_MODULE = FlaxDinov2Model.from_pretrained(
-    "facebook/dinov2-small",            # pick any checkpoint
+    "facebook/dinov2-small", dtype=jax.numpy.bfloat16      # pick any checkpoint
 )
 class DinoEncoder(nj.Module):
   """Thin wrapper that registers Dinov2 parameters in the Ninjax tree."""
@@ -442,32 +442,17 @@ class DinoEncoder(nj.Module):
     out = _DINOV2_MODULE(x, train=train, params=params)
     return out.last_hidden_state
 
-RESIZE_SHORT_EDGE = 256
-CROP_SIZE = 224
+RESIZE = 224
 MEAN = jnp.array([0.485, 0.456, 0.406], dtype=jnp.float32)
 STD  = jnp.array([0.229, 0.224, 0.225], dtype=jnp.float32)
 
-def preprocess_image(img):
-  # resize smallest dimension to 256
-  h, w = img.shape[:2]
-  scale = RESIZE_SHORT_EDGE / jnp.minimum(h, w)
-  newh, neww = (jnp.round(jnp.array([h, w]) * scale)).astype(jnp.int32)
-  img = img.astype(jnp.float32)  
-  resized_img = jax.image.resize(img, (newh, neww, 3), method="cubic") 
-
-  # Central Crop
-  h, w = resized_img.shape[:2]
-  top  = (h - CROP_SIZE) // 2
-  left = (w - CROP_SIZE) // 2
-  cropped_image = jax.lax.dynamic_slice(resized_img, (top, left, 0), (CROP_SIZE, CROP_SIZE, 3))
-
+def preprocess_images(imgs):
+  resized_imgs = jax.image.resize(imgs, (imgs.shape[0], RESIZE, RESIZE, 3), method="cubic") 
   # Rescale
-  cropped_image = cropped_image / 255.0                   # rescale
-  cropped_image = (cropped_image - MEAN) / STD  # normalize
+  resized_imgs = resized_imgs / 255.0          # rescale
+  resized_imgs = (resized_imgs - MEAN) / STD  # normalize
 
-  return cropped_image
-
-preprocess_images = jax.vmap(preprocess_image, in_axes=0)
+  return resized_imgs
 
 class DINOv2Encoder(Encoder):
   """
@@ -487,8 +472,6 @@ class DINOv2Encoder(Encoder):
 
   def __init__(self, obs_space, **kw):
     super().__init__(obs_space, **kw)
-
-
   
   def encode_image_obs(self, obs, bdims, training=False):
     imgs = [obs[k] for k in sorted(self.imgkeys)]
@@ -497,15 +480,14 @@ class DINOv2Encoder(Encoder):
     x = nn.cast(jnp.concatenate(imgs, -1), force=True)
     x = x.reshape((-1, *x.shape[bdims:]))
     x = preprocess_images(x)
+    x = jax.numpy.permute_dims(x, (0, 3, 1, 2))
 
     # Forward pass through the image encoder
-    x = self.sub('dino_enc', DinoEncoder)(x, train=training)
+    x = self.sub('dino_enc', DinoEncoder)(x, train=training).last_hidden_state
 
     # Apply activation and normalization
     x = nn.act(self.act)(self.sub(f'dino_norm', nn.Norm, self.norm)(x))
 
-    assert 3 <= x.shape[-3] <= 16, x.shape
-    assert 3 <= x.shape[-2] <= 16, x.shape
     # Flatten all dimensions except the first (batch dimension)
     x = x.reshape((x.shape[0], -1))
 
