@@ -434,7 +434,7 @@ class DinoEncoder(nj.Module):
 
   def __call__(self, x, *, train: bool):
     # 1) Retrieve or create the param tree inside Ninjax
-    params = nj.variable(
+    params = nj.Variable(
         'params',               # <- contributes to Dreamer gradients
         'dino',                 # unique name
         lambda: self._init_params
@@ -473,7 +473,7 @@ class DINOv2Encoder(Encoder):
     x = x.reshape((-1, *x.shape[bdims:]))
 
     # Forward pass through the image encoder
-    x = self.dino(x)
+    x = self.dino(x, train=True)
 
     # Apply activation and normalization
     x = nn.act(self.act)(self.sub(f'dino{i}norm', nn.Norm, self.norm)(x))
