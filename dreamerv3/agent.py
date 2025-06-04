@@ -78,11 +78,11 @@ class Agent(embodied.jax.Agent):
     self.valnorm = embodied.jax.Normalize(**config.valnorm, name='valnorm')
     self.advnorm = embodied.jax.Normalize(**config.advnorm, name='advnorm')
 
-    freeze_params = ['pretrained_vision_params'] if config.enc.freeze else []
+    finetune = not config.enc.freeze
     self.modules = [
         self.dyn, self.enc, self.dec, self.rew, self.con, self.pol, self.val]
     self.opt = embodied.jax.Optimizer(
-        self.modules, self._make_opt(**config.opt, freeze_params=freeze_params), summary_depth=1,
+        self.modules, self._make_opt(**config.opt, finetune=finetune), summary_depth=1,
         name='opt')
 
     scales = self.config.loss_scales.copy()
@@ -395,6 +395,7 @@ class Agent(embodied.jax.Agent):
   def _make_opt(
       self,
       lr: float = 4e-5,
+      ft_lr: float = 4e-6, # finetune learning rate
       agc: float = 0.3,
       eps: float = 1e-20,
       beta1: float = 0.9,
@@ -406,44 +407,48 @@ class Agent(embodied.jax.Agent):
       schedule: str = 'const',
       warmup: int = 1000,
       anneal: int = 0,
-      freeze_params: list[str] = []
+      finetune: bool = False
   ):
-    chain = []
-    chain.append(embodied.jax.opt.clip_by_agc(agc))
-    chain.append(embodied.jax.opt.scale_by_rms(beta2, eps))
-    chain.append(embodied.jax.opt.scale_by_momentum(beta1, nesterov))
-    if wd:
-      assert not wdregex[0].isnumeric(), wdregex
-      pattern = re.compile(wdregex)
-      wdmask = lambda params: {k: bool(pattern.search(k)) for k in params}
-      chain.append(optax.add_decayed_weights(wd, wdmask))
-    assert anneal > 0 or schedule == 'const'
-    if schedule == 'const':
-      sched = optax.constant_schedule(lr)
-    elif schedule == 'linear':
-      sched = optax.linear_schedule(lr, 0.1 * lr, anneal - warmup)
-    elif schedule == 'cosine':
-      sched = optax.cosine_decay_schedule(lr, anneal - warmup, 0.1 * lr)
+    def make_chain(learning_rate):
+      chain = []
+      chain.append(embodied.jax.opt.clip_by_agc(agc))
+      chain.append(embodied.jax.opt.scale_by_rms(beta2, eps))
+      chain.append(embodied.jax.opt.scale_by_momentum(beta1, nesterov))
+      if wd:
+        assert not wdregex[0].isnumeric(), wdregex
+        pattern = re.compile(wdregex)
+        wdmask = lambda params: {k: bool(pattern.search(k)) for k in params}
+        chain.append(optax.add_decayed_weights(wd, wdmask))
+      assert anneal > 0 or schedule == 'const'
+      if schedule == 'const':
+        sched = optax.constant_schedule(learning_rate)
+      elif schedule == 'linear':
+        sched = optax.linear_schedule(learning_rate, 0.1 * learning_rate, anneal - warmup)
+      elif schedule == 'cosine':
+        sched = optax.cosine_decay_schedule(learning_rate, anneal - warmup, 0.1 * learning_rate)
+      else:
+        raise NotImplementedError(schedule)
+      if warmup:
+        ramp = optax.linear_schedule(0.0, learning_rate, warmup)
+        sched = optax.join_schedules([ramp, sched], [warmup])
+      chain.append(optax.scale_by_learning_rate(sched))
+
+      return chain
+
+    base_optimiser = optax.chain(*make_chain(lr))
+
+    def pretrain_mask(path, _leaf):
+      if path and path[0] == "pretrained_vision_params":
+          return "pretrained"
+      else:
+          return "train"
+    
+    if finetune:    
+      ft_optimiser = optax.chain(*make_chain(ft_lr))
+      optimiser = optax.partition({'train': base_optimiser, 'pretrained': ft_optimiser}, pretrain_mask)
+
     else:
-      raise NotImplementedError(schedule)
-    if warmup:
-      ramp = optax.linear_schedule(0.0, lr, warmup)
-      sched = optax.join_schedules([ramp, sched], [warmup])
-    chain.append(optax.scale_by_learning_rate(sched))
-
-    optimiser = optax.chain(*chain)
-
-    # Keeping this code here for now for when we need to enable finetuning
-    if freeze_params:    
-      def map_nested_fn(fn):
-        '''Recursively apply `fn` to key-value pairs of a nested dict.'''
-        def map_fn(nested_dict):
-          return {k: (map_fn(v) if isinstance(v, dict) else fn(k, v))
-                  for k, v in nested_dict.items()}
-        return map_fn
-
-      freeze_fn = map_nested_fn(lambda k, _: 'freeze' if k in freeze_params else 'train')
-      optimiser = optax.partition({'train': optimiser, 'freeze': optax.set_to_zero()}, freeze_fn)
+      optimiser = optax.partition({'train': base_optimiser, 'pretrained': optax.set_to_zero()}, pretrain_mask)
 
     return optimiser
 
