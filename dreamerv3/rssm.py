@@ -423,19 +423,18 @@ class PEEncoder(Encoder):
     return x
 
 
+print("Loading Dinov2...")
 _DINOV2_MODULE = FlaxDinov2Model.from_pretrained(
     "facebook/dinov2-small", dtype=jax.numpy.bfloat16      # pick any checkpoint
 )
+DINO_PARAMS_HOST = jax.tree_util.tree_map(lambda x: np.asarray(x, dtype=x.dtype), _DINOV2_MODULE.params)
+
 class DinoEncoder(nj.Module):
   """Thin wrapper that registers Dinov2 parameters in the Ninjax tree."""
-  def __init__(self):
-    # Capture the *structure* of the pretrained params once
-    self._init_params = _DINOV2_MODULE.params
-
   def __call__(self, x, *, train: bool):
     # 1) Retrieve or create the param tree inside Ninjax
     params = nj.Variable(
-        lambda: self._init_params,
+        lambda: DINO_PARAMS_HOST,
         name='dino',                 # unique name
     ).read()
   
