@@ -265,14 +265,14 @@ class Agent(embodied.Agent):
     seed = data.pop('seed')
     assert sorted(data.keys()) == sorted(self.spaces.keys()), (
         sorted(data.keys()), sorted(self.spaces.keys()))
-    allo = {k: v for k, v in self.params.items() if k in self.policy_keys}
-    dona = {k: v for k, v in self.params.items() if k not in self.policy_keys}
+    # allo = {k: v for k, v in self.params.items() if k in self.policy_keys}
+    # dona = {k: v for k, v in self.params.items() if k not in self.policy_keys}
     with self.train_lock:
       with elements.timer.section('jit_train'):
         with jax.profiler.StepTraceAnnotation(
             'train', step_num=int(self.n_updates)):
           self.params, carry, outs, mets = self._train(
-              dona, allo, seed, carry, data)
+              self.params, seed, carry, data)
     self.n_updates.increment()
 
     if self.jaxcfg.enable_policy:
