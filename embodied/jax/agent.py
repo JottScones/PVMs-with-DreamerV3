@@ -496,8 +496,8 @@ class Agent(embodied.Agent):
       lines.append(f"Memory (outputs): {mem.output_size_in_bytes:.1e}")
       lines.append(f"Memory (code):    {mem.generated_code_size_in_bytes:.1e}")
       return ''.join(f'  {line}\n' for line in lines)
-    except (TypeError, AttributeError, KeyError) as e:
-      return f'No available \n\n {e} \n\n'
+    except (TypeError, AttributeError, KeyError):
+      return f'No available'
 
 def init(fun, **jit_kwargs):
   if not getattr(fun, '_is_pure', False):
