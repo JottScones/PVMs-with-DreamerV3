@@ -437,11 +437,19 @@ class Agent(embodied.jax.Agent):
 
     base_optimiser = optax.chain(*make_chain(lr))
 
-    def pretrain_mask(path, _leaf):
-      if path and path[0] == "pretrained_vision_params":
-          return "pretrained"
-      else:
-          return "train"
+    def pretrain_mask(nested_dict, current_path=""):
+      result = {}
+      for k, v in nested_dict.items():
+        new_path = f"{current_path}/{k}" if current_path else k
+        if isinstance(v, dict):
+          result[k] = pretrain_mask(v, new_path)
+        else:
+          # Determine label based on path
+          if 'pretrained_vision_params' in new_path:
+            result[k] = 'pretrained'
+          else:
+            result[k] = 'train'
+      return result
     
     if finetune:    
       ft_optimiser = optax.chain(*make_chain(ft_lr))
