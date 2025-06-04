@@ -440,7 +440,8 @@ class DinoEncoder(nj.Module):
   
     # (Batch, Sequence, Hidden Size)
     out = _DINOV2_MODULE(x, train=train, params=params).pooler_output
-    return out
+    feat = jnp.array(out, copy=True)
+    return feat
 
 RESIZE = 224
 MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
