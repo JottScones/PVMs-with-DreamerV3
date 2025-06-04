@@ -196,6 +196,7 @@ defaults:
         }
     enc:
       typ: simple
+      freeze: False
       simple:
         {
           depth: 64,
@@ -380,6 +381,14 @@ atari100kPE:
   agent:
     enc:
       typ: perception_encoder
+
+atari100kDINOFreeze:
+  task: atari100kPE_pong
+  run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
+  agent:
+    enc:
+      freeze: True
+      typ: dino
 
 atari100kDINO:
   task: atari100kPE_pong
