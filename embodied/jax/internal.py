@@ -7,7 +7,7 @@ import elements
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jax.sharding import PartitionSpec as P
+from jax.sharding import NamedSharding, PartitionSpec as P
 
 from . import nets
 
@@ -269,21 +269,81 @@ def grouped_ckpt_fns(params, chunksize):
 
   return list(zip(groups, gather_fns, shard_fns))
 
+def _is_array(x):
+    """Treat anything that has a .shape as a leaf array."""
+    return hasattr(x, "shape")
 
-def ckpt_fn(params, compile=True):
-  mesh = params[list(params.keys())[0]].sharding.mesh
-  mirrored = jax.sharding.NamedSharding(mesh, P())
-  struct = lambda x, s: jax.ShapeDtypeStruct(x.shape, x.dtype, sharding=s)
-  keys = params.keys()
-  original = {k: params[k].sharding for k in keys}
-  inspec = {k: struct(params[k], original[k]) for k in keys}
-  gather_fn = jax.jit(lambda x: x, (original,), mirrored).lower(inspec)
-  inspec = {k: struct(params[k], mirrored) for k in keys}
-  shard_fn = jax.jit(lambda x: x, (mirrored,), original).lower(inspec)
-  if compile:
-    gather_fn = gather_fn.compile()
-    shard_fn = shard_fn.compile()
-  return gather_fn, shard_fn
+def _struct_like(arr, sharding):
+    """Shape/dtype skeleton used by lower()."""
+    return jax.ShapeDtypeStruct(arr.shape, arr.dtype, sharding=sharding)
+
+def _sharding_tree(tree):
+    """Mirror the tree but keep only the `.sharding` objects."""
+    return jax.tree_util.tree_map(lambda x: getattr(x, "sharding", None),
+                        tree,  is_leaf=_is_array)
+
+def ckpt_fn(params, compile: bool = True):
+    """
+    Build two tiny jitted functions:
+      • gather_fn: device-sharded  → fully-mirrored (for saving ckpt)
+      • shard_fn : fully-mirrored  → original sharding (for restore)
+    Works for arbitrarily nested parameter trees.
+    """
+    # ------------------------------------------------------------------
+    # 1) Mesh & mirrored sharding come from the first *leaf* in the tree
+    # ------------------------------------------------------------------
+    first_leaf = jax.tree_util.tree_leaves(params)[0]
+    mesh       = first_leaf.sharding.mesh
+    mirrored   = NamedSharding(mesh, P())          # replicate on all devices
+
+    # ------------------------------------------------------------------
+    # 2) Trees that hold the original sharding annotation
+    # ------------------------------------------------------------------
+    original_sharding = _sharding_tree(params)
+
+    # ------------------------------------------------------------------
+    # 3) Input specs for both directions
+    # ------------------------------------------------------------------
+    in_spec_gather = jax.tree_util.tree_map(_struct_like, params, original_sharding,
+                                  is_leaf=_is_array)
+    in_spec_shard  = jax.tree_util.tree_map(lambda x: _struct_like(x, mirrored),
+                                  params, is_leaf=_is_array)
+
+    # ------------------------------------------------------------------
+    # 4) JIT wrappers (°ᴗ°)ﾉ
+    # ------------------------------------------------------------------
+    gather_fn = jax.jit(
+        lambda x: x,
+        in_shardings = original_sharding,
+        out_shardings = mirrored,
+    ).lower(in_spec_gather)
+
+    shard_fn  = jax.jit(
+        lambda x: x,
+        in_shardings = mirrored,
+        out_shardings = original_sharding,
+    ).lower(in_spec_shard)
+
+    if compile:
+        gather_fn = gather_fn.compile()
+        shard_fn  = shard_fn.compile()
+
+    return gather_fn, shard_fn
+
+# def ckpt_fn(params, compile=True):
+#   mesh = params[list(params.keys())[0]].sharding.mesh
+#   mirrored = jax.sharding.NamedSharding(mesh, P())
+#   struct = lambda x, s: jax.ShapeDtypeStruct(x.shape, x.dtype, sharding=s)
+#   keys = params.keys()
+#   original = {k: params[k].sharding for k in keys}
+#   inspec = {k: struct(params[k], original[k]) for k in keys}
+#   gather_fn = jax.jit(lambda x: x, (original,), mirrored).lower(inspec)
+#   inspec = {k: struct(params[k], mirrored) for k in keys}
+#   shard_fn = jax.jit(lambda x: x, (mirrored,), original).lower(inspec)
+#   if compile:
+#     gather_fn = gather_fn.compile()
+#     shard_fn = shard_fn.compile()
+#   return gather_fn, shard_fn
 
 
 # def node_mesh(mesh, mp_dims=('t',)):
