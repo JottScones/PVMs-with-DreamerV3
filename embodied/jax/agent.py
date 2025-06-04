@@ -143,7 +143,7 @@ class Agent(embodied.Agent):
     self._train = transform.apply(
         nj.pure(self.model.train), self.train_mesh,
         (dona_sharding, allo_sharding, tm, ts, ts), (tp, ts, ts, tm), ar,
-        return_params=True, donate_params=True, first_outnums=(3,),
+        return_params=True, donate_params=False, first_outnums=(3,),
         **shared_kwargs)
     self._report = transform.apply(
         nj.pure(self.model.report), self.train_mesh,

@@ -300,6 +300,7 @@ def ckpt_fn(params, compile: bool = True):
     # 2) Trees that hold the original sharding annotation
     # ------------------------------------------------------------------
     original_sharding = _sharding_tree(params)
+    mirrored_tree = jax.tree_util.tree_map(lambda _: mirrored, original_sharding)
 
     # ------------------------------------------------------------------
     # 3) Input specs for both directions
@@ -314,13 +315,13 @@ def ckpt_fn(params, compile: bool = True):
     # ------------------------------------------------------------------
     gather_fn = jax.jit(
         lambda x: x,
-        in_shardings = original_sharding,
-        out_shardings = mirrored,
+        in_shardings = (original_sharding,),
+        out_shardings = mirrored_tree,
     ).lower(in_spec_gather)
 
     shard_fn  = jax.jit(
         lambda x: x,
-        in_shardings = mirrored,
+        in_shardings = (mirrored_tree,),
         out_shardings = original_sharding,
     ).lower(in_spec_shard)
 
