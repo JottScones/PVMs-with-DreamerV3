@@ -452,9 +452,9 @@ class Agent(embodied.Agent):
     data = internal.device_put(data, self.train_sharded)
     seed = self._seeds(0, self.train_mirrored)
     carry = self.init_train(B)
-    allo = {k: v for k, v in self.params.items() if k in self.policy_keys}
-    dona = {k: v for k, v in self.params.items() if k not in self.policy_keys}
-    self._train = self._train.lower(dona, allo, seed, carry, data).compile()
+    # allo = {k: v for k, v in self.params.items() if k in self.policy_keys}
+    # dona = {k: v for k, v in self.params.items() if k not in self.policy_keys}
+    self._train = self._train.lower(self.params, seed, carry, data).compile()
 
   def _compile_report(self):
     B = self.config.batch_size
