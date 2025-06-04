@@ -247,7 +247,7 @@ class Encoder(nj.Module):
   outer: bool = False
   strided: bool = False
 
-  def __init__(self, obs_space, **kw):
+  def __init__(self, obs_space, freeze=False, **kw):
     assert all(len(s.shape) <= 3 for s in obs_space.values()), obs_space
     self.obs_space = obs_space
 
@@ -362,7 +362,7 @@ class PEEncoder(Encoder):
   outer: bool = False
   strided: bool = False
 
-  def __init__(self, obs_space, **kw):
+  def __init__(self, obs_space, freeze=False, **kw):
     super().__init__(obs_space, **kw)
 
     model = pe.VisionTransformer.from_config("PE-Core-B16-224", pretrained=True)  # Downloads from HF
@@ -430,18 +430,21 @@ _DINOV2_MODULE = FlaxDinov2Model.from_pretrained(
 DINO_PARAMS_HOST = jax.tree_util.tree_map(lambda x: np.asarray(x, dtype=x.dtype), _DINOV2_MODULE.params)
 
 class DinoEncoder(nj.Module):
+  def __init__(self, freeze=False):
+    super().__init__()
+    self.freeze = freeze
+
   """Thin wrapper that registers Dinov2 parameters in the Ninjax tree."""
   def __call__(self, x, *, train: bool):
     # 1) Retrieve or create the param tree inside Ninjax
     params = nj.Variable(
         lambda: DINO_PARAMS_HOST,
-        name='dino',                 # unique name
+        name='pretrained_vision_params',
     ).read()
   
     # (Batch, Sequence, Hidden Size)
     out = _DINOV2_MODULE(x, train=train, params=params).pooler_output
-    feat = jnp.array(out, copy=True)
-    return feat
+    return sg(out) if self.freeze else out
 
 RESIZE = 224
 MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
@@ -472,8 +475,9 @@ class DINOv2Encoder(Encoder):
   outer: bool = False
   strided: bool = False
 
-  def __init__(self, obs_space, **kw):
+  def __init__(self, obs_space, freeze=False, **kw):
     super().__init__(obs_space, **kw)
+    self.freeze = freeze
   
   def encode_image_obs(self, obs, bdims, training=False):
     imgs = [obs[k] for k in sorted(self.imgkeys)]
@@ -485,7 +489,7 @@ class DINOv2Encoder(Encoder):
     x = jax.numpy.permute_dims(x, (0, 3, 1, 2))
 
     # Forward pass through the image encoder
-    x = self.sub('dino_enc', DinoEncoder)(x, train=training)
+    x = self.sub('dino_enc', DinoEncoder, self.freeze)(x, train=training)
 
     # Apply activation and normalization
     x = nn.act(self.act)(self.sub(f'dino_norm', nn.Norm, self.norm)(x))

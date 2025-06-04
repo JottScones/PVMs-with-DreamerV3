@@ -42,7 +42,7 @@ class Agent(embodied.jax.Agent):
         'simple': rssm.Encoder,
         'perception_encoder': rssm.PEEncoder,
         'dino': rssm.DINOv2Encoder
-    }[config.enc.typ](enc_space, **config.enc[config.enc.typ], name='enc')
+    }[config.enc.typ](enc_space, freeze=config.enc.freeze, **config.enc[config.enc.typ], name='enc')
     self.dyn = {
         'rssm': rssm.RSSM,
     }[config.dyn.typ](act_space, **config.dyn[config.dyn.typ], name='dyn')
@@ -78,10 +78,11 @@ class Agent(embodied.jax.Agent):
     self.valnorm = embodied.jax.Normalize(**config.valnorm, name='valnorm')
     self.advnorm = embodied.jax.Normalize(**config.advnorm, name='advnorm')
 
+    freeze_params = ['pretrained_vision_params'] if config.enc.freeze else []
     self.modules = [
         self.dyn, self.enc, self.dec, self.rew, self.con, self.pol, self.val]
     self.opt = embodied.jax.Optimizer(
-        self.modules, self._make_opt(**config.opt), summary_depth=1,
+        self.modules, self._make_opt(**config.opt, freeze_params=freeze_params), summary_depth=1,
         name='opt')
 
     scales = self.config.loss_scales.copy()
@@ -405,6 +406,7 @@ class Agent(embodied.jax.Agent):
       schedule: str = 'const',
       warmup: int = 1000,
       anneal: int = 0,
+      freeze_params: list[str] = []
   ):
     chain = []
     chain.append(embodied.jax.opt.clip_by_agc(agc))
@@ -428,7 +430,22 @@ class Agent(embodied.jax.Agent):
       ramp = optax.linear_schedule(0.0, lr, warmup)
       sched = optax.join_schedules([ramp, sched], [warmup])
     chain.append(optax.scale_by_learning_rate(sched))
-    return optax.chain(*chain)
+
+    optimiser = optax.chain(*chain)
+
+    # Keeping this code here for now for when we need to enable finetuning
+    if freeze_params:    
+      def map_nested_fn(fn):
+        '''Recursively apply `fn` to key-value pairs of a nested dict.'''
+        def map_fn(nested_dict):
+          return {k: (map_fn(v) if isinstance(v, dict) else fn(k, v))
+                  for k, v in nested_dict.items()}
+        return map_fn
+
+      freeze_fn = map_nested_fn(lambda k, _: 'freeze' if k in freeze_params else 'train')
+      optimiser = optax.partition({'train': optimiser, 'freeze': optax.set_to_zero()}, freeze_fn)
+
+    return optimiser
 
 
 def imag_loss(
