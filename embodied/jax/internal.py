@@ -254,7 +254,7 @@ def grouped_ckpt_fns(params, chunksize):
   assert all(len(keys) for keys in groups)
   msg = f'Compiling {len(groups)} checkpoint groups...'
   elements.print(msg, color='yellow')
-  maxsize = max(sum(params[k].nbytes for k in g) for g in groups)
+  maxsize = max(sum(l.nbytes for k in g for l in jax.tree_util.tree_leaves(params[k])) for g in groups)
   print(f'Largest checkpoint group: {maxsize / (1024 ** 3):.0f} GB')
 
   gather_fns, shard_fns = [], []
