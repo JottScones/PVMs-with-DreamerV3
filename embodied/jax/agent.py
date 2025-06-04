@@ -138,11 +138,11 @@ class Agent(embodied.Agent):
         nj.pure(self.model.init_policy), self.policy_mesh,
         (pp, pm), (ps,), ar, single_output=True, static_argnums=(2,),
         **shared_kwargs)
-    allo_sharding = {k: v for k, v in tp.items() if k in self.policy_keys}
-    dona_sharding = {k: v for k, v in tp.items() if k not in self.policy_keys}
+    # allo_sharding = {k: v for k, v in tp.items() if k in self.policy_keys}
+    # dona_sharding = {k: v for k, v in tp.items() if k not in self.policy_keys}
     self._train = transform.apply(
         nj.pure(self.model.train), self.train_mesh,
-        (dona_sharding, allo_sharding, tm, ts, ts), (tp, ts, ts, tm), ar,
+        (tp, tm, ts, ts), (tp, ts, ts, tm), ar,
         return_params=True, donate_params=False, first_outnums=(3,),
         **shared_kwargs)
     self._report = transform.apply(
