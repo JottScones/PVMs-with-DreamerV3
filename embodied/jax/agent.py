@@ -238,16 +238,12 @@ class Agent(embodied.Agent):
       carry, acts, outs = self._policy(
           self.policy_params, seed, carry, obs, mode)
     
-    carry.block_until_ready()
-    acts.block_until_ready()
-    outs.block_until_ready()
-
     if self.jaxcfg.enable_policy:
       with self.policy_lock:
         if self.pending_sync:
           old = self.policy_params
           self.policy_params = self.pending_sync
-          jax.tree.map(lambda x: x.delete(), old)
+          # jax.tree.map(lambda x: x.delete(), old)
           self.pending_sync = None
 
     acts, outs = self._take_outs(internal.fetch_async((acts, outs)))
@@ -284,8 +280,8 @@ class Agent(embodied.Agent):
         self.pending_sync = internal.move(
             {k: allo[k] for k in self.policy_keys},
             self.policy_params_sharding)
-      else:
-        jax.tree.map(lambda x: x.delete(), allo)
+      # else:
+        # jax.tree.map(lambda x: x.delete(), allo)
 
     return_outs = {}
     if self.pending_outs:
@@ -377,14 +373,14 @@ class Agent(embodied.Agent):
       if regex:
         params = {k: v for k, v in params.items() if re.match(regex, k)}
         keys = params.keys()
-        jax.tree.map(lambda x: x.delete(), [self.params[k] for k in keys])
+        # jax.tree.map(lambda x: x.delete(), [self.params[k] for k in keys])
         params = internal.ckpt_fn({k: self.params[k] for k in keys})[1](
             internal.device_put(params, self.train_mirrored))
         print('Loaded pretrained checkpoint with keys:', list(params.keys()))
         self.params.update(params)
       else:
         chex.assert_trees_all_equal_shapes(self.params, params)
-        jax.tree.map(lambda x: x.delete(), self.params)
+        # jax.tree.map(lambda x: x.delete(), self.params)
 
         loaded = {}
         for keys, _, shard_fn in self._ckpt_groups:
@@ -394,7 +390,7 @@ class Agent(embodied.Agent):
         self.params = loaded
 
       if self.jaxcfg.enable_policy:
-        jax.tree.map(lambda x: x.delete(), self.policy_params)
+        # jax.tree.map(lambda x: x.delete(), self.policy_params)
         policy_params = {
             k: self.params[k].copy() for k in self.policy_keys}
         self.policy_params = internal.move(
