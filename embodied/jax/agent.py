@@ -467,10 +467,17 @@ class Agent(embodied.Agent):
     self._report = self._report.lower(self.params, seed, carry, data).compile()
 
   def _summary(self):
-    lines = []
-    for k, v in self.params.items():
-      lines.append(f'{k:<40} {v.dtype} {v.size} {v.shape}')
-    return '\n'.join(lines)
+    def process_params(params):
+      lines = []
+      for k, v in params.items():
+        if isinstance(v, dict):
+          lines += process_params(v)
+        else:
+          lines.append(f'{k:<40} {v.dtype} {v.size} {v.shape}')
+
+      return lines
+    
+    return '\n'.join(process_params(self.params))
 
   def _zeros(self, spaces, batch_shape):
     data = {k: np.zeros(v.shape, v.dtype) for k, v in spaces.items()}
@@ -489,8 +496,8 @@ class Agent(embodied.Agent):
       lines.append(f"Memory (outputs): {mem.output_size_in_bytes:.1e}")
       lines.append(f"Memory (code):    {mem.generated_code_size_in_bytes:.1e}")
       return ''.join(f'  {line}\n' for line in lines)
-    except (TypeError, AttributeError, KeyError):
-      return 'No available'
+    except (TypeError, AttributeError, KeyError) as e:
+      return f'No available \n\n {e} \n\n'
 
 def init(fun, **jit_kwargs):
   if not getattr(fun, '_is_pure', False):
