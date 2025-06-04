@@ -138,12 +138,12 @@ class Agent(embodied.Agent):
         nj.pure(self.model.init_policy), self.policy_mesh,
         (pp, pm), (ps,), ar, single_output=True, static_argnums=(2,),
         **shared_kwargs)
-    # allo_sharding = {k: v for k, v in tp.items() if k in self.policy_keys}
-    # dona_sharding = {k: v for k, v in tp.items() if k not in self.policy_keys}
+    allo_sharding = {k: v for k, v in tp.items() if k in self.policy_keys}
+    dona_sharding = {k: v for k, v in tp.items() if k not in self.policy_keys}
     self._train = transform.apply(
         nj.pure(self.model.train), self.train_mesh,
-        (tp, tm, ts, ts), (tp, ts, ts, tm), ar,
-        return_params=True, donate_params=False, first_outnums=(3,),
+        (dona_sharding, allo_sharding, tm, ts, ts), (tp, ts, ts, tm), ar,
+        return_params=True, donate_params=True, first_outnums=(3,),
         **shared_kwargs)
     self._report = transform.apply(
         nj.pure(self.model.report), self.train_mesh,
@@ -237,6 +237,10 @@ class Agent(embodied.Agent):
     with self.policy_lock:
       carry, acts, outs = self._policy(
           self.policy_params, seed, carry, obs, mode)
+    
+    carry.block_until_ready()
+    acts.block_until_ready()
+    outs.block_until_ready()
 
     if self.jaxcfg.enable_policy:
       with self.policy_lock:
@@ -265,14 +269,14 @@ class Agent(embodied.Agent):
     seed = data.pop('seed')
     assert sorted(data.keys()) == sorted(self.spaces.keys()), (
         sorted(data.keys()), sorted(self.spaces.keys()))
-    # allo = {k: v for k, v in self.params.items() if k in self.policy_keys}
-    # dona = {k: v for k, v in self.params.items() if k not in self.policy_keys}
+    allo = {k: v for k, v in self.params.items() if k in self.policy_keys}
+    dona = {k: v for k, v in self.params.items() if k not in self.policy_keys}
     with self.train_lock:
       with elements.timer.section('jit_train'):
         with jax.profiler.StepTraceAnnotation(
             'train', step_num=int(self.n_updates)):
           self.params, carry, outs, mets = self._train(
-              self.params, seed, carry, data)
+              dona, allo, seed, carry, data)
     self.n_updates.increment()
 
     if self.jaxcfg.enable_policy:
@@ -452,9 +456,9 @@ class Agent(embodied.Agent):
     data = internal.device_put(data, self.train_sharded)
     seed = self._seeds(0, self.train_mirrored)
     carry = self.init_train(B)
-    # allo = {k: v for k, v in self.params.items() if k in self.policy_keys}
-    # dona = {k: v for k, v in self.params.items() if k not in self.policy_keys}
-    self._train = self._train.lower(self.params, seed, carry, data).compile()
+    allo = {k: v for k, v in self.params.items() if k in self.policy_keys}
+    dona = {k: v for k, v in self.params.items() if k not in self.policy_keys}
+    self._train = self._train.lower(dona, allo, seed, carry, data).compile()
 
   def _compile_report(self):
     B = self.config.batch_size
