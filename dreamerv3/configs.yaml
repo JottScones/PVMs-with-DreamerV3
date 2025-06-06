@@ -64,9 +64,8 @@ defaults:
     maniskill:
       {
         size: [64, 64],
-        repeat: 1,
         obs_mode: rgb,
-        control: pd_joint_delta_po,
+        control_mode: pd_joint_delta_pos,
         sim_backend: physx_cuda,
       }
 
