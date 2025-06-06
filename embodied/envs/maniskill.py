@@ -12,10 +12,13 @@ class ManiSkill(embodied.Env):
     self.resize = resize
     kwargs['sensor_configs'] = dict(width=size[0], height=size[1])
 
-    env = from_gym.FromGym(task, **kwargs)
-    self.env = FlattenRGBDObservationWrapper(env, rgb=True, depth=False, state=False)
+    env = gym.make(task, **kwargs)
+    env = FlattenRGBDObservationWrapper(env, rgb=True, depth=False, state=False)
     if isinstance(env.action_space, gym.spaces.Dict):
-        self.env = FlattenActionSpaceWrapper(env)
+        env = FlattenActionSpaceWrapper(env)
+
+    self.env = from_gym.FromGym(env)
+
 
   @property
   def obs_space(self):
