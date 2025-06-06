@@ -2,7 +2,7 @@ import functools
 
 import elements
 import embodied
-import gym
+import gymnasium as gym
 import numpy as np
 
 
@@ -63,11 +63,12 @@ class FromGym(embodied.Env):
       action = self._unflatten(action)
     else:
       action = action[self._act_key]
-    obs, reward, self._done, self._info = self._env.step(action)
+    obs, reward, terminated, truncated, self._info = self._env.step(action)
+    self._done = terminated or truncated
     return self._obs(
         obs, reward,
         is_last=bool(self._done),
-        is_terminal=bool(self._info.get('is_terminal', self._done)))
+        is_terminal=terminated)
 
   def _obs(
       self, obs, reward, is_first=False, is_last=False, is_terminal=False):
