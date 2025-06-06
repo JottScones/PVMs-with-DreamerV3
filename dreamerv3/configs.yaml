@@ -326,7 +326,7 @@ crafter:
 
 maniskill:
   task: maniskill_PickCube-v1
-  run: { step: 1.1e6, envs: 1, train_ratio: 256 }
+  run: { steps: 1.1e6, envs: 1, train_ratio: 256 }
 
 dmc_proprio:
   <<: *size1m
