@@ -72,8 +72,10 @@ class FromGym(embodied.Env):
 
   def _obs(
       self, obs, reward, is_first=False, is_last=False, is_terminal=False):
-    if not self._obs_dict:
-      obs = {self._obs_key: obs}
+    if not (self._obs_dict and isinstance(obs, dict)):
+      obs = {self._obs_key: obs['rgb']}
+
+    del obs['rgb']
     obs = self._flatten(obs)
     obs = {k: np.asarray(v) for k, v in obs.items()}
     obs.update(
