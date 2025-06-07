@@ -6,35 +6,65 @@ import gymnasium as gym
 import numpy as np
 
 class ManiSkill(embodied.Env):
-  def __init__(self, task, size=(64, 64), resize='pillow', **kwargs):
-    assert resize in ('opencv', 'pillow'), resize
-    from . import from_gym
-    self.size = size
-    self.resize = resize
+  def __init__(self, task, size=(64, 64), obs_key="image", act_key="action", **kwargs):
     kwargs['sensor_configs'] = dict(width=size[0], height=size[1])
 
-    env = gym.make(task, **kwargs)
-    env = FlattenRGBDObservationWrapper(env, rgb=True, depth=False, state=False)
-    if isinstance(env.action_space, gym.spaces.Dict):
-        env = FlattenActionSpaceWrapper(env)
-
-    self.env = from_gym.FromGym(env)
-
+    self.env = gym.make(task, **kwargs)
+    self.env = FlattenRGBDObservationWrapper(self.env, rgb=True, depth=False, state=False)
+    if isinstance(self.env.action_space, gym.spaces.Dict):
+        self.env = FlattenActionSpaceWrapper(self.env)
+    
+    self.size = size
+    self._obs_key = obs_key
+    self._act_key = act_key
+    self._done = True
+    self._info = None
+    
+  @property
+  def info(self):
+    return self._info
 
   @property
   def obs_space(self):
-    spaces = self.env.obs_space.copy()
-    spaces['image'] = elements.Space(np.uint8, (*self.size, 3))
-    del spaces['rgb']
-    return spaces
+    return {
+        self._obs_key: elements.Space(np.uint8, (*self.size, 3)),
+        'reward': elements.Space(np.float32),
+        'is_first': elements.Space(bool),
+        'is_last': elements.Space(bool),
+        'is_terminal': elements.Space(bool),
+    }
+
+  def _obs(
+      self, raw_obs, reward, is_first=False, is_last=False, is_terminal=False):
+    obs = {
+        self._obs_key: raw_obs["rgb"],
+        "reward": np.float32(reward),
+        "is_first": is_first,
+        "is_last": is_last,
+        "is_terminal": is_terminal
+    }
+    obs = {k: np.asarray(v) for k, v in obs.items()}
+    return obs
 
   @property
   def act_space(self):
-    return self.env.act_space
+    spaces = {self._act_key: self.env.act_space}
+    spaces['reset'] = elements.Space(bool)
+    return spaces
 
   def step(self, action):
-    obs = self.env.step(action)
-    return obs
-  
+    if action['reset'] or self._done:
+      self._done = False
+      obs, self._info = self._env.reset()
+      return self._obs(obs, 0.0, is_first=True)
 
+    action = action[self._act_key]
 
+    obs, reward, terminated, truncated, self._info = self._env.step(action)
+    reward, terminated, truncated = reward.cpu(), terminated.cpu(), truncated.cpu()
+
+    self._done = terminated or truncated
+    return self._obs(
+        obs, reward,
+        is_last=bool(self._done),
+        is_terminal=terminated)
