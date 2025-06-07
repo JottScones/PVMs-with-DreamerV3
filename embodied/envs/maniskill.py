@@ -44,7 +44,7 @@ class ManiSkill(embodied.Env):
         "is_last": is_last,
         "is_terminal": is_terminal
     }
-    obs = {k: v.reshape(-1, *v.shape[-2:]) for k, v in obs.items()}
+    obs = {k: np.asarray(v) for k, v in obs.items()}
     return obs
 
   @functools.cached_property
@@ -66,11 +66,11 @@ class ManiSkill(embodied.Env):
     obs, reward, terminated, truncated, self._info = self.env.step(action)
     reward, terminated, truncated = reward.cpu(), terminated.cpu(), truncated.cpu()
 
-    self._done = terminated or truncated
+    self._done = terminated[0] or truncated[0]
     return self._obs(
-        obs, reward,
+        obs, reward[0],
         is_last=bool(self._done),
-        is_terminal=terminated)
+        is_terminal=terminated[0])
 
   def _convert(self, space):
     if hasattr(space, 'n'):
