@@ -35,10 +35,10 @@ class ManiSkill(embodied.Env):
         'is_terminal': elements.Space(bool),
     }
 
-  def _obs(
-      self, raw_obs, reward, is_first=False, is_last=False, is_terminal=False):
+  def _obs(self, raw_obs, reward, is_first=False, is_last=False, is_terminal=False):
+    image = raw_obs["rgb"].cpu().reshape((*self.size, 3))
     obs = {
-        self._obs_key: raw_obs["rgb"],
+        self._obs_key: image,
         "reward": np.float32(reward),
         "is_first": is_first,
         "is_last": is_last,
@@ -50,9 +50,9 @@ class ManiSkill(embodied.Env):
   @functools.cached_property
   def act_space(self):
       if self._act_dict:
-       spaces = self._flatten(self._env.action_space.spaces)
+       spaces = self._flatten(self.env.action_space.spaces)
       else:
-        spaces = {self._act_key: self._env.action_space}
+        spaces = {self._act_key: self.env.action_space}
 
       spaces = {k: self._convert(v) for k, v in spaces.items()}
       spaces['reset'] = elements.Space(bool)
@@ -61,12 +61,12 @@ class ManiSkill(embodied.Env):
   def step(self, action):
     if action['reset'] or self._done:
       self._done = False
-      obs, self._info = self._env.reset()
+      obs, self._info = self.env.reset()
       return self._obs(obs, 0.0, is_first=True)
 
     action = action[self._act_key]
 
-    obs, reward, terminated, truncated, self._info = self._env.step(action)
+    obs, reward, terminated, truncated, self._info = self.env.step(action)
     reward, terminated, truncated = reward.cpu(), terminated.cpu(), truncated.cpu()
 
     self._done = terminated or truncated
@@ -74,3 +74,8 @@ class ManiSkill(embodied.Env):
         obs, reward,
         is_last=bool(self._done),
         is_terminal=terminated)
+
+  def _convert(self, space):
+    if hasattr(space, 'n'):
+      return elements.Space(np.int32, (), 0, space.n)
+    return elements.Space(space.dtype, space.shape, space.low, space.high)
