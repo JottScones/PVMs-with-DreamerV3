@@ -1,5 +1,6 @@
 import elements
 import embodied
+import functools
 import mani_skill.envs
 from mani_skill.utils.wrappers.flatten import FlattenRGBDObservationWrapper, FlattenActionSpaceWrapper
 import gymnasium as gym
@@ -46,11 +47,16 @@ class ManiSkill(embodied.Env):
     obs = {k: np.asarray(v) for k, v in obs.items()}
     return obs
 
-  @property
+  @functools.cached_property
   def act_space(self):
-    spaces = {self._act_key: self.env.act_space}
-    spaces['reset'] = elements.Space(bool)
-    return spaces
+      if self._act_dict:
+       spaces = self._flatten(self._env.action_space.spaces)
+      else:
+        spaces = {self._act_key: self._env.action_space}
+
+      spaces = {k: self._convert(v) for k, v in spaces.items()}
+      spaces['reset'] = elements.Space(bool)
+      return spaces
 
   def step(self, action):
     if action['reset'] or self._done:
