@@ -327,6 +327,7 @@ maniskill:
   task: maniskill_PickCube-v1
   run: { steps: 1.1e6, train_ratio: 256 }
   agent.enc.simple.mults: [2, 3, 4, 4, 4, 4]
+  agent.dec.simple.mults: [2, 3, 4, 4, 4, 4]
 
 dmc_proprio:
   <<: *size1m
