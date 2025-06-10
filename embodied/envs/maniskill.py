@@ -17,7 +17,7 @@ class PickSingleYCBWristEnv(PickSingleYCBEnv):
     return []
 
 class ManiSkill(embodied.Env):
-  def __init__(self, task, size=(64, 64), obs_key="image", act_key="action", **kwargs):
+  def __init__(self, task, size=(64, 64), obs_key="image", act_key="action", seed=None, **kwargs):
     kwargs['sensor_configs'] = dict(width=size[0], height=size[1])
 
     self.env = gym.make(task, **kwargs)
@@ -30,6 +30,7 @@ class ManiSkill(embodied.Env):
     self._act_key = act_key
     self._done = True
     self._info = None
+    self._random = np.random.RandomState(seed)
     
   @property
   def info(self):
@@ -68,7 +69,7 @@ class ManiSkill(embodied.Env):
   def step(self, action):
     if action['reset'] or self._done:
       self._done = False
-      obs, self._info = self.env.reset()
+      obs, self._info = self.env.reset(seed=self._random.randint(0, 2 ** 31 - 1))
       return self._obs(obs, 0.0, is_first=True)
 
     action = action[self._act_key]
