@@ -76,30 +76,3 @@ class ManiSkill(embodied.Env):
     if hasattr(space, 'n'):
       return elements.Space(np.int32, (), 0, space.n)
     return elements.Space(space.dtype, space.shape, space.low, space.high)
-
-"""
-Traceback (most recent call last):
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 277, in <module>
-    main()
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/dreamerv3/main.py", line 69, in main
-    embodied.run.train(
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/run/train.py", line 97, in train
-    driver(policy, steps=10)
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/core/driver.py", line 54, in __call__
-    step, episode = self._step(policy, step, episode)
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/core/driver.py", line 65, in _step
-    obs = [env.step(act) for env, act in zip(self.envs, acts)]
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/core/driver.py", line 65, in <listcomp>
-    obs = [env.step(act) for env, act in zip(self.envs, acts)]
-           ^^^^^^^^^^^^^
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/core/wrappers.py", line 86, in step
-    return self.env.step({**action, self._key: clipped})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/core/wrappers.py", line 256, in step
-    self._check(value, self.env.obs_space[key], key)
-  File "/rds/user/swj24/hpc-work/dissertation/dreamerv3/embodied/core/wrappers.py", line 268, in _check
-    raise ValueError(
-ValueError: Value for 'reward' with dtype float32, shape (1,), lowest 0.06051364168524742, highest 0.06051364168524742 is not in Space(float32, shape=(), low=-inf, high=inf)
-"""

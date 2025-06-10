@@ -6,3 +6,8 @@ __pycache__/
 MUJOCO_LOG.TXT
 ;
 *.DS_Store
+.python-version
+machine.file*
+logs/*
+logdir/*
+slurm-*
