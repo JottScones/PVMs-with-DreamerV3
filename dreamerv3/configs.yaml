@@ -324,7 +324,7 @@ crafter:
   run: { steps: 1.1e6, envs: 1, train_ratio: 512 }
 
 maniskill:
-  task: maniskill_PickCube-v1
+  task: maniskill_PickSingleYCB-v1
   run: { steps: 1.1e6, train_ratio: 32 }
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
