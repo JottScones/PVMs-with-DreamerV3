@@ -63,7 +63,7 @@ defaults:
     loconav: { size: [64, 64], repeat: 1, camera: -1 }
     maniskill:
       {
-        size: [224, 224],
+        size: [128, 128],
         obs_mode: rgb,
         control_mode: pd_joint_delta_pos,
         sim_backend: physx_cuda,
@@ -325,9 +325,9 @@ crafter:
 
 maniskill:
   task: maniskill_PickCube-v1
-  run: { steps: 1.1e6, train_ratio: 256 }
-  agent.enc.simple.mults: [2, 3, 4, 4, 4, 4]
-  agent.dec.simple.mults: [2, 3, 4, 4, 4, 4]
+  run: { steps: 1.1e6, train_ratio: 32 }
+  agent.enc.simple.mults: [2, 3, 4, 4, 4]
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
 
 dmc_proprio:
   <<: *size1m
