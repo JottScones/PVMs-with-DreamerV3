@@ -9,12 +9,13 @@ import numpy as np
 from mani_skill.envs.tasks.tabletop import PickSingleYCBEnv
 from mani_skill.utils.registration import register_env
 
-@register_env("PickSingleYCBWrist-v1", max_episode_steps=50, asset_download_ids=["ycb"])
+@register_env("PickSingleYCBVisible-v1", max_episode_steps=50, asset_download_ids=["ycb"])
 class PickSingleYCBWristEnv(PickSingleYCBEnv):
 
-  @property
-  def _default_sensor_configs(self):
-    return []
+  def _load_scene(self, options):
+    super()._load_scene(options)
+    # Unhide goal
+    self._hidden_objects = [o for o in self._hidden_objects if o != self.goal_site]
 
 class ManiSkill(embodied.Env):
   def __init__(self, task, size=(64, 64), obs_key="image", act_key="action", seed=None, **kwargs):
