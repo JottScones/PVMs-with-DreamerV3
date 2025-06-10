@@ -77,11 +77,11 @@ class ManiSkill(embodied.Env):
     obs, reward, terminated, truncated, self._info = self.env.step(action)
     reward, terminated, truncated = reward.cpu(), terminated.cpu(), truncated.cpu()
 
-    self._done = terminated[0] or truncated[0]
+    self._done = terminated.item() or truncated.item()
     return self._obs(
-        obs, reward[0],
+        obs, reward.item(),
         is_last=bool(self._done),
-        is_terminal=terminated[0])
+        is_terminal=terminated.item())
 
   def _convert(self, space):
     if hasattr(space, 'n'):
