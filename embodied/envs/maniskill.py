@@ -6,6 +6,16 @@ from mani_skill.utils.wrappers.flatten import FlattenRGBDObservationWrapper, Fla
 import gymnasium as gym
 import numpy as np
 
+from mani_skill.envs.tasks.tabletop import PickSingleYCBEnv
+from mani_skill.utils.registration import register_env
+
+@register_env("PickSingleYCBWrist-v1", max_episode_steps=50, asset_download_ids=["ycb"])
+class PickSingleYCBWristEnv(PickSingleYCBEnv):
+
+  @property
+  def _default_sensor_configs(self):
+    return []
+
 class ManiSkill(embodied.Env):
   def __init__(self, task, size=(64, 64), obs_key="image", act_key="action", **kwargs):
     kwargs['sensor_configs'] = dict(width=size[0], height=size[1])
