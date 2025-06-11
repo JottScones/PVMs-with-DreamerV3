@@ -447,18 +447,28 @@ class DinoEncoder(nj.Module):
     out = out.reshape((out.shape[0], -1))
     return sg(out) if self.freeze else out
 
-RESIZE = 224
+RESIZE = 256
+CROP = 224
 MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 def preprocess_images(imgs):
   imgs = imgs.astype(jnp.float32) 
-  resized_imgs = jax.image.resize(imgs, (imgs.shape[0], RESIZE, RESIZE, 3), method="cubic") 
-  # Rescale
-  resized_imgs = resized_imgs / 255.0          # rescale
-  resized_imgs = (resized_imgs - MEAN) / STD  # normalize
+  batch_size, h, w, c = imgs.shape
 
-  return resized_imgs
+  # Resize if necessary
+  if h != RESIZE:
+    imgs = jax.image.resize(imgs, (batch_size, RESIZE, RESIZE, c), method="cubic") 
+
+  # Central Crop
+  left = top = (RESIZE - CROP) // 2
+  imgs = jax.lax.dynamic_slice(imgs, (0, top, left, 0), (batch_size, CROP, CROP, c))
+
+  # Rescale
+  imgs = imgs / 255.0          # rescale
+  imgs = (imgs - MEAN) / STD  # normalize
+
+  return imgs
 
 class DINOv2Encoder(Encoder):
   """
