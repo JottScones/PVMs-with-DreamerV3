@@ -330,6 +330,13 @@ maniskill:
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
 
+maniskillview:
+  task: maniskillview_PickSingleYCBWristView-v1
+  script: train
+  run: { steps: 10000, from_checkpoint: "" }
+  agent.enc.simple.mults: [2, 3, 4, 4, 4]
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+
 dmc_proprio:
   <<: *size1m
   task: dmc_walker_walk
