@@ -332,8 +332,8 @@ maniskill:
 
 maniskillview:
   task: maniskillview_PickSingleYCBWristView-v1
-  script: train
-  run: { steps: 10000, from_checkpoint: "" }
+  script: eval_only
+  run: { steps: 10000, from_checkpoint: "logdir/baseline_pick_ycb/ckpt/20250611T075717F873023" }
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
 

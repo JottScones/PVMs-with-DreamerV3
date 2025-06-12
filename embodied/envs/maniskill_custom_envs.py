@@ -7,6 +7,8 @@ import numpy as np
 
 from mani_skill.envs.tasks.tabletop import PickSingleYCBEnv
 from mani_skill.utils.registration import register_env
+from mani_skill.sensors.camera import CameraConfig
+from mani_skill.utils import common, sapien_utils
 
 @register_env("PickSingleYCBWrist-v1", max_episode_steps=50, asset_download_ids=["ycb"])
 class PickSingleYCBWristEnv(PickSingleYCBEnv):
@@ -142,6 +144,8 @@ class PickSingleYCBWristEnv(PickSingleYCBEnv):
 
 @register_env("PickSingleYCBWristView-v1", max_episode_steps=50, asset_download_ids=["ycb"])
 class PickSingleYCBWristViewEnv(PickSingleYCBWristEnv):
+
   @property
   def _default_sensor_configs(self):
-    super(PickSingleYCBWristEnv, self)._default_sensor_configs
+    pose = sapien_utils.look_at(eye=[0.3, 0, 0.6], target=[-0.1, 0, 0.1])
+    return [CameraConfig("base_camera", pose, 128, 128, np.pi / 2, 0.01, 100)]

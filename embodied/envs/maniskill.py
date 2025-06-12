@@ -2,7 +2,7 @@ import elements
 import embodied
 import functools
 import mani_skill.envs
-import maniskill_custom_envs # keep imported
+import embodied.envs.maniskill_custom_envs # keep imported
 from mani_skill.utils.wrappers.flatten import FlattenRGBDObservationWrapper, FlattenActionSpaceWrapper
 import gymnasium as gym
 import numpy as np
