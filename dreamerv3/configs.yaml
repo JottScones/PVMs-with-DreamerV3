@@ -69,6 +69,14 @@ defaults:
         sim_backend: physx_cpu,
         use_seed: True,
       }
+    maniskillview:
+      {
+        size: [128, 128],
+        obs_mode: rgb,
+        control_mode: pd_joint_delta_pos,
+        sim_backend: physx_cpu,
+        use_seed: True,
+      }
 
   replay:
     size: 5e6

@@ -8,7 +8,7 @@ import numpy as np
 from mani_skill.envs.tasks.tabletop import PickSingleYCBEnv
 from mani_skill.utils.registration import register_env
 from mani_skill.sensors.camera import CameraConfig
-from mani_skill.utils import common, sapien_utils
+from mani_skill.utils import sapien_utils
 
 @register_env("PickSingleYCBWrist-v1", max_episode_steps=50, asset_download_ids=["ycb"])
 class PickSingleYCBWristEnv(PickSingleYCBEnv):
