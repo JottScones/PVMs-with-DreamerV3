@@ -396,7 +396,7 @@ maniskill:
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
 
 maniskillview:
-  task: maniskillview_PickSingleYCBWristView-v1
+  task: maniskill_PickSingleYCBWrist-v1
   script: eval_only
   run:
     {
