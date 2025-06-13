@@ -115,11 +115,11 @@ class ManiSkillView(ManiSkill):
 
   def _obs(self, raw_obs, reward, is_first=False, is_last=False, is_terminal=False):
     image = raw_obs["sensor_data"]['hand_camera']["rgb"].cpu().reshape((*self.size, 3))
-    view = raw_obs["sensor_data"]['base_camera']["rgb"].cpu().reshape((*self.size, 3))
+    view = raw_obs["sensor_data"]['base_camera']["rgb"].cpu().reshape((*self.view_size, 3))
 
     obs = {
         self._obs_key: image,
-        "view": view,
+        "log/view": view,
         "reward": np.float32(reward),
         "is_first": is_first,
         "is_last": is_last,
