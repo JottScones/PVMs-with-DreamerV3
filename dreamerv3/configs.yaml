@@ -396,12 +396,12 @@ maniskill:
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
 
 maniskillview:
-  task: maniskill_PickSingleYCBWrist-v1
+  task: maniskillview_PickSingleYCBWristView-v1
   script: eval_only
   run:
     {
       steps: 12000,
-      from_checkpoint: "logdir/baseline_pick_ycb_train_ID/ckpt/20250614T044516F348219",
+      from_checkpoint: "logdir/DINOFreeze_pick_ycb_train/ckpt/20250612T182947F619465",
     }
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
