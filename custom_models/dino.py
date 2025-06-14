@@ -9,7 +9,7 @@ from flax.core.frozen_dict import FrozenDict, freeze, unfreeze
 from flax.linen.attention import dot_product_attention_weights
 from flax.traverse_util import flatten_dict, unflatten_dict
 
-from transformers.modelling_flax_outputs import FlaxBaseModelOutput, FlaxBaseModelOutputWithPooling, FlaxSequenceClassifierOutput
+from transformers.modeling_flax_outputs import FlaxBaseModelOutput, FlaxBaseModelOutputWithPooling, FlaxSequenceClassifierOutput
 from transformers.modeling_flax_utils import (
     ACT2FN,
     FlaxPreTrainedModel,
@@ -17,7 +17,59 @@ from transformers.modeling_flax_utils import (
     overwrite_call_docstring,
 )
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward
-from transformers.configuration_dinov2 import Dinov2Config
+from transformers import Dinov2Config
+
+
+DINOV2_START_DOCSTRING = r"""
+
+    This model inherits from [`FlaxPreTrainedModel`]. Check the superclass documentation for the generic methods the
+    library implements for all its model (such as downloading, saving and converting weights from PyTorch models)
+
+    This model is also a
+    [flax.linen.Module](https://flax.readthedocs.io/en/latest/api_reference/flax.linen/module.html) subclass. Use it as
+    a regular Flax linen Module and refer to the Flax documentation for all matter related to general usage and
+    behavior.
+
+    Finally, this model supports inherent JAX features such as:
+
+    - [Just-In-Time (JIT) compilation](https://jax.readthedocs.io/en/latest/jax.html#just-in-time-compilation-jit)
+    - [Automatic Differentiation](https://jax.readthedocs.io/en/latest/jax.html#automatic-differentiation)
+    - [Vectorization](https://jax.readthedocs.io/en/latest/jax.html#vectorization-vmap)
+    - [Parallelization](https://jax.readthedocs.io/en/latest/jax.html#parallelization-pmap)
+
+    Parameters:
+        config ([`Dinov2Config`]): Model configuration class with all the parameters of the model.
+            Initializing with a config file does not load the weights associated with the model, only the
+            configuration. Check out the [`~FlaxPreTrainedModel.from_pretrained`] method to load the model weights.
+        dtype (`jax.numpy.dtype`, *optional*, defaults to `jax.numpy.float32`):
+            The data type of the computation. Can be one of `jax.numpy.float32`, `jax.numpy.float16` (on GPUs) and
+            `jax.numpy.bfloat16` (on TPUs).
+
+            This can be used to enable mixed-precision training or half-precision inference on GPUs or TPUs. If
+            specified all the computation will be performed with the given `dtype`.
+
+            **Note that this only specifies the dtype of the computation and does not influence the dtype of model
+            parameters.**
+
+            If you wish to change the dtype of the model parameters, see [`~FlaxPreTrainedModel.to_fp16`] and
+            [`~FlaxPreTrainedModel.to_bf16`].
+"""
+
+DINOV2_INPUTS_DOCSTRING = r"""
+    Args:
+        pixel_values (`numpy.ndarray` of shape `(batch_size, num_channels, height, width)`):
+            Pixel values. Pixel values can be obtained using [`AutoImageProcessor`]. See [`Dinov2ImageProcessor.__call__`]
+            for details.
+
+        output_attentions (`bool`, *optional*):
+            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
+            tensors for more detail.
+        output_hidden_states (`bool`, *optional*):
+            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
+            more detail.
+        return_dict (`bool`, *optional*):
+            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
+"""
 
 
 class FlaxDinov2PatchEmbeddings(nn.Module):
@@ -667,9 +719,10 @@ FLAX_VISION_MODEL_DOCSTRING = """
     ```
 """
 
-overwrite_call_docstring(FlaxDinov2Model, FLAX_VISION_MODEL_DOCSTRING)
+overwrite_call_docstring(CheckpointableFlaxDinov2Model,
+                         FLAX_VISION_MODEL_DOCSTRING)
 append_replace_return_docstrings(
-    FlaxDinov2Model, output_type=FlaxBaseModelOutputWithPooling, config_class=Dinov2Config
+    CheckpointableFlaxDinov2Model, output_type=FlaxBaseModelOutputWithPooling, config_class=Dinov2Config
 )
 
 
@@ -771,4 +824,4 @@ append_replace_return_docstrings(
 
 
 __all__ = ["FlaxDinov2ForImageClassification",
-           "FlaxDinov2Model", "FlaxDinov2PreTrainedModel"]
+           "CheckpointableFlaxDinov2Model", "FlaxDinov2PreTrainedModel"]
