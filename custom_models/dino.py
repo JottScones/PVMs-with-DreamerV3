@@ -504,31 +504,30 @@ class FlaxDinov2LayerCollection(nn.Module):
         return_dict: bool = True,
     ):
         def _forward(h_states, det, out_attn, out_hid):
-            all_attentions = () if out_attn else None
-            all_hidden_states = () if out_hid else None
-
-            for i, layer in enumerate(self.layers):
+            all_attns = () if out_attn else None
+            all_hids = () if out_hid else None
+            x = h_states
+            for layer in self.layers:
                 if out_hid:
-                    all_hidden_states += (h_states,)
-
-                layer_outputs = layer(
-                    h_states, deterministic=det, output_attentions=out_attn)
-
-                h_states = layer_outputs[0]
-
+                    all_hids = all_hids + (x,)
+                y, *attn = layer(x, deterministic=det,
+                                 output_attentions=out_attn)
+                x = y
                 if out_attn:
-                    all_attentions += (layer_outputs[1],)
-
+                    all_attns = all_attns + (attn[0],)
             if out_hid:
-                all_hidden_states += (h_states,)
-
-            outputs = (h_states,)
-            if not return_dict:
-                return tuple(v for v in outputs if v is not None)
-
-            return FlaxBaseModelOutput(
-                last_hidden_state=h_states, hidden_states=all_hidden_states, attentions=all_attentions
-            )
+                all_hids = all_hids + (x,)
+            if return_dict:
+                return FlaxBaseModelOutput(
+                    last_hidden_state=x, hidden_states=all_hids, attentions=all_attns
+                )
+            else:
+                out = (x,)
+                if out_hid:
+                    out += (all_hids,)
+                if out_attn:
+                    out += (all_attns,)
+                return out
 
         return jax.checkpoint(_forward, static_argnums=(1, 2))(hidden_states, deterministic, output_attentions, output_hidden_states)
 
