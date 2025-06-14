@@ -184,7 +184,8 @@ defaults:
         }
     enc:
       typ: simple
-      freeze: False
+      freeze: True
+      finetune_layers: -1
       simple:
         {
           depth: 64,
@@ -394,6 +395,8 @@ atari100kDINO:
   run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
   agent:
     enc:
+      freeze: False
+      finetune_layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
       typ: dino
 
 atari100kClipFreeze:
@@ -506,6 +509,16 @@ maniskillDINO:
   run: { steps: 1.01e6, train_ratio: 32 }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.typ: dino
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 0 # FT all layers
+
+maniskillDINOPartialFreeze:
+  task: maniskill_PickSingleYCBWrist-v1
+  run: { steps: 1.01e6, train_ratio: 32 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: dino
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 8 # FT layers 8 and above
 
 maniskillDINOFreeze:
   task: maniskill_PickSingleYCBWrist-v1

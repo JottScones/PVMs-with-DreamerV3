@@ -11,6 +11,7 @@ import numpy as np
 import optax
 
 from . import rssm
+from functools import partial
 
 f32 = jnp.float32
 i32 = jnp.int32
@@ -78,11 +79,11 @@ class Agent(embodied.jax.Agent):
         self.valnorm = embodied.jax.Normalize(**config.valnorm, name='valnorm')
         self.advnorm = embodied.jax.Normalize(**config.advnorm, name='advnorm')
 
-        finetune = not config.enc.freeze
+        finetune_layers = -1 if config.enc.freeze else config.enc.finetune_layers
         self.modules = [
             self.dyn, self.enc, self.dec, self.rew, self.con, self.pol, self.val]
         self.opt = embodied.jax.Optimizer(
-            self.modules, self._make_opt(**config.opt, finetune=finetune), summary_depth=1,
+            self.modules, self._make_opt(**config.opt, finetune_layers=finetune_layers), summary_depth=1,
             name='opt')
 
         scales = self.config.loss_scales.copy()
@@ -415,7 +416,7 @@ class Agent(embodied.jax.Agent):
         schedule: str = 'const',
         warmup: int = 1000,
         anneal: int = 0,
-        finetune: bool = False
+        finetune_layers: int = -1,
     ):
         def make_chain(learning_rate):
             chain = []
@@ -448,28 +449,38 @@ class Agent(embodied.jax.Agent):
 
         base_optimiser = optax.chain(*make_chain(lr))
 
-        def pretrain_mask(nested_dict, current_path=""):
+        def finetune_freeze_mask(nested_dict, current_path="", ft_layers=-1):
             result = {}
             for k, v in nested_dict.items():
                 new_path = f"{current_path}/{k}" if current_path else k
                 if isinstance(v, dict):
-                    result[k] = pretrain_mask(v, new_path)
+                    result[k] = finetune_freeze_mask(
+                        v, new_path, ft_layers=ft_layers)
                 else:
-                    # Determine label based on path
                     if 'pretrained_vision_params' in new_path:
-                        result[k] = 'pretrained'
+                        if ft_layers == 0:
+                            result[k] = 'finetune'
+
+                        else:
+                            result[k] = 'freeze'
+                            if (ft_layers >= 0) and (match := re.search('\/encoder\/layer\/\d+', new_path)):
+                                layer_num = match.group().split('/')[-1]
+                                if int(layer_num) >= ft_layers:
+                                    result[k] = 'finetune'
+
                     else:
                         result[k] = 'train'
             return result
 
-        if finetune:
-            ft_optimiser = optax.chain(*make_chain(ft_lr))
-            optimiser = optax.partition(
-                {'train': base_optimiser, 'pretrained': ft_optimiser}, pretrain_mask)
-
-        else:
-            optimiser = optax.partition(
-                {'train': base_optimiser, 'pretrained': optax.set_to_zero()}, pretrain_mask)
+        ft_optimiser = optax.chain(*make_chain(ft_lr))
+        optimiser = optax.partition(
+            {
+                'train': base_optimiser,
+                'finetune': ft_optimiser,
+                'freeze': optax.set_to_zero()
+            },
+            partial(finetune_freeze_mask, ft_layers=finetune_layers)
+        )
 
         return optimiser
 
