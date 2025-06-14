@@ -503,7 +503,7 @@ class FlaxDinov2LayerCollection(nn.Module):
         output_hidden_states: bool = False,
         return_dict: bool = True,
     ):
-        def _forward(h_states, det, out_attn, out_hid):
+        def _forward(h_states, det, out_attn, out_hid, ret_dict):
             all_attns = () if out_attn else None
             all_hids = () if out_hid else None
             x = h_states
@@ -517,7 +517,8 @@ class FlaxDinov2LayerCollection(nn.Module):
                     all_attns = all_attns + (attn[0],)
             if out_hid:
                 all_hids = all_hids + (x,)
-            if return_dict:
+
+            if ret_dict:   # <— branch on this too
                 return FlaxBaseModelOutput(
                     last_hidden_state=x, hidden_states=all_hids, attentions=all_attns
                 )
@@ -529,7 +530,20 @@ class FlaxDinov2LayerCollection(nn.Module):
                     out += (all_attns,)
                 return out
 
-        return jax.checkpoint(_forward, static_argnums=(1, 2))(hidden_states, deterministic, output_attentions, output_hidden_states)
+        # 2) Wrap with checkpoint, marking args 1–4 as static:
+        checkpointed = jax.checkpoint(
+            _forward,
+            static_argnums=(1, 2, 3, 4)      # det, out_attn, out_hid, ret_dict
+        )
+
+        # 3) Call it with all positional args
+        return checkpointed(
+            hidden_states,
+            deterministic,
+            output_attentions,
+            output_hidden_states,
+            return_dict
+        )
 
 
 # Copied from transformers.models.vit.modeling_flax_vit.FlaxViTEncoder with ViT->Dinov2
