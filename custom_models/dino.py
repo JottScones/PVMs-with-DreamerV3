@@ -490,7 +490,7 @@ class FlaxDinov2LayerCollection(nn.Module):
 
     def setup(self):
         self.layers = [
-            nn.remat(FlaxDinov2Layer, static_argnums=(1, 2))(
+            FlaxDinov2Layer(
                 self.config, name=str(i), dtype=self.dtype)
             for i in range(self.config.num_hidden_layers)
         ]
@@ -503,31 +503,34 @@ class FlaxDinov2LayerCollection(nn.Module):
         output_hidden_states: bool = False,
         return_dict: bool = True,
     ):
-        all_attentions = () if output_attentions else None
-        all_hidden_states = () if output_hidden_states else None
+        def _forward(h_states, det, out_attn, out_hid):
+            all_attentions = () if out_attn else None
+            all_hidden_states = () if out_hid else None
 
-        for i, layer in enumerate(self.layers):
-            if output_hidden_states:
-                all_hidden_states += (hidden_states,)
+            for i, layer in enumerate(self.layers):
+                if out_hid:
+                    all_hidden_states += (h_states,)
 
-            layer_outputs = layer(
-                hidden_states, deterministic=deterministic, output_attentions=output_attentions)
+                layer_outputs = layer(
+                    h_states, deterministic=det, output_attentions=out_attn)
 
-            hidden_states = layer_outputs[0]
+                h_states = layer_outputs[0]
 
-            if output_attentions:
-                all_attentions += (layer_outputs[1],)
+                if out_attn:
+                    all_attentions += (layer_outputs[1],)
 
-        if output_hidden_states:
-            all_hidden_states += (hidden_states,)
+            if out_hid:
+                all_hidden_states += (h_states,)
 
-        outputs = (hidden_states,)
-        if not return_dict:
-            return tuple(v for v in outputs if v is not None)
+            outputs = (h_states,)
+            if not return_dict:
+                return tuple(v for v in outputs if v is not None)
 
-        return FlaxBaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=all_hidden_states, attentions=all_attentions
-        )
+            return FlaxBaseModelOutput(
+                last_hidden_state=h_states, hidden_states=all_hidden_states, attentions=all_attentions
+            )
+
+        return jax.checkpoint(_forward, static_argnums=(1, 2))(hidden_states, deterministic, output_attentions, output_hidden_states)
 
 
 # Copied from transformers.models.vit.modeling_flax_vit.FlaxViTEncoder with ViT->Dinov2
