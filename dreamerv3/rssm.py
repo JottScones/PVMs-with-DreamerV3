@@ -442,10 +442,7 @@ class PEEncoder(Encoder):
 
 print("Loading Dinov2...")
 _DINOV2_MODULE = CheckpointableFlaxDinov2Model.from_pretrained(
-    "facebook/dinov2-small", dtype=jax.numpy.bfloat16      # pick any checkpoint
-)
-# Enable gradient checkpointing for memory efficiency
-_DINOV2_MODULE.config.gradient_checkpointing = True
+    "facebook/dinov2-small", dtype=jax.numpy.bfloat16)
 DINO_PARAMS_HOST = jax.tree_util.tree_map(
     lambda x: np.asarray(x, dtype=x.dtype), _DINOV2_MODULE.params)
 
