@@ -77,7 +77,7 @@ defaults:
         control_mode: pd_joint_delta_pos,
         sim_backend: physx_cpu,
         use_seed: True,
-        in_distribution: True,
+        in_distribution: False,
       }
 
   replay:
@@ -345,8 +345,8 @@ maniskillview:
   script: eval_only
   run:
     {
-      steps: 10000,
-      from_checkpoint: "logdir/baseline_pick_ycb/ckpt/20250611T075717F873023",
+      steps: 12000,
+      from_checkpoint: "logdir/baseline_pick_ycb_train_ID/ckpt/20250614T044516F348219",
     }
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
