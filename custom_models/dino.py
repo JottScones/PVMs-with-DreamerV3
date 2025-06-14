@@ -490,7 +490,7 @@ class FlaxDinov2LayerCollection(nn.Module):
 
     def setup(self):
         self.layers = [
-            nn.remat(FlaxDinov2Layer, static_argnames=("deterministic", "output_attentions"))(
+            nn.remat(FlaxDinov2Layer, static_argnums=(1, 2))(
                 self.config, name=str(i), dtype=self.dtype)
             for i in range(self.config.num_hidden_layers)
         ]
