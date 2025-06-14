@@ -489,19 +489,11 @@ class FlaxDinov2LayerCollection(nn.Module):
     dtype: jnp.dtype = jnp.float32  # the dtype of the computation
 
     def setup(self):
-        def maybe_remat(layer_fn):
-            return nn.remat(layer_fn) if self.config.gradient_checkpointing else layer_fn
-
         self.layers = [
-            maybe_remat(FlaxDinov2Layer)(
+            nn.remat(FlaxDinov2Layer)(
                 self.config, name=str(i), dtype=self.dtype)
             for i in range(self.config.num_hidden_layers)
         ]
-
-    # def setup(self):
-    #     self.layers = [
-    #         FlaxDinov2Layer(self.config, name=str(i), dtype=self.dtype) for i in range(self.config.num_hidden_layers)
-    #     ]
 
     def __call__(
         self,
