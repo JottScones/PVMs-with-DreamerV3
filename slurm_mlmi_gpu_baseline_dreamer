@@ -37,7 +37,7 @@
 #! ######################################################################################
 #! ######################################################################################
 #! set configurations in run.py, e.g. options="--train_json=train_fbank.json --lr=0.01":
-options="--configs maniskillview --logdir ./logdir/DINOFreeze_pick_ycb_train_eval_ID"
+options="--configs maniskillview --logdir ./logdir/DINOPartial_pick_ycb_eval_OOD"
 
 #! ######################################################################################
 #! ######################################################################################
