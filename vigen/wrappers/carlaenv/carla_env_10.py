@@ -254,6 +254,7 @@ class CarlaEnv10(object):
         self.num_other_cars = cfg_dict['num_other_cars']
         self.num_other_cars_nearby = cfg_dict['num_other_cars_nearby']
         self.cameras = cfg_dict['cameras']
+        print(1)
 
         self.actor_list = []
 
@@ -271,6 +272,7 @@ class CarlaEnv10(object):
         self.map = self.world.get_map()
         self.vehicle_spawn_points = self.map.get_spawn_points()
         # assert self.map.name == "Town05"
+        print(2)
 
         # remove old vehicles and sensors (in case they survived)
         self.world.tick()
@@ -290,6 +292,7 @@ class CarlaEnv10(object):
         self.vehicles = None
         self.reset_vehicle()  # creates self.vehicle
         self.actor_list.append(self.vehicle)
+        print(3)
 
         blueprint_library = self.world.get_blueprint_library()
 
@@ -303,6 +306,7 @@ class CarlaEnv10(object):
                 attach_to=self.vehicle)
             self.actor_list.append(self.camera_rgb)
             cam_list.append(self.camera_rgb)
+        print(4)
 
         # we'll use up to five cameras, which we'll stitch together
         bp = blueprint_library.find('sensor.camera.rgb')
@@ -315,6 +319,7 @@ class CarlaEnv10(object):
         location_side_left = carla.Location(y=-1, z=1.7)
         location_side_right = carla.Location(y=1, z=1.7)
         location_above = carla.Location(x=-3.8, z=4.6)
+        print(5)
 
         if 'foresight0' in self.cameras:
             self.camera_rl = self.world.spawn_actor(bp, carla.Transform(location_foresight, carla.Rotation(yaw=0.0)),
@@ -374,6 +379,7 @@ class CarlaEnv10(object):
                                                           attach_to=self.vehicle)
             self.actor_list.append(self.camera_rl_above)
             cam_list.append(self.camera_rl_above)
+        print(6)
 
         bp = self.world.get_blueprint_library().find('sensor.other.collision')
         self.collision_sensor = self.world.spawn_actor(
@@ -391,9 +397,11 @@ class CarlaEnv10(object):
 
         self.sync_mode = CarlaSyncMode(self.world, *cam_list, fps=20)
 
+        print(7)
         # weather
         self.weather = Weather(
             self.world, self.changing_weather_speed, self.cfg_dict['weather'])
+        print(8)
 
         # dummy variables given bisim's assumption on deep-mind-control suite APIs
         low = -1.0
@@ -423,6 +431,7 @@ class CarlaEnv10(object):
         self.metadata = None
         self.action_space.sample = lambda: np.random.uniform(low=low, high=high,
                                                              size=self.action_space.shape[0]).astype(np.float32)
+        print(9)
 
         # roaming carla agent
         self.agent = None
@@ -431,6 +440,7 @@ class CarlaEnv10(object):
         self.return_ = 0
         self.velocities = []
         self.world.tick()
+        print(10)
         self.reset()  # creates self.agent
 
     def dist_from_center_lane(self, vehicle, info):

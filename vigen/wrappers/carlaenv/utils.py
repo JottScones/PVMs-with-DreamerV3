@@ -31,6 +31,8 @@ def make_env_10(action_repeat):
         cfg = compose(config_name="carlaenv10_config")
         cfg_dict = omegaconf_to_dict(cfg)
     cfg_dict['frame_skip'] = action_repeat
+    print("Final Config")
+    print(cfg_dict)
     env = CarlaEnv10(cfg_dict)
     return env
 

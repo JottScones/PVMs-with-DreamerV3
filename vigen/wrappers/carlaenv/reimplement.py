@@ -3,6 +3,7 @@ import numpy as np
 
 import carla
 from agents.tools.misc import is_within_distance, compute_distance  # noqa
+from enum import Enum
 
 
 def is_within_distance_ahead(target_transform, current_transform, max_distance):
