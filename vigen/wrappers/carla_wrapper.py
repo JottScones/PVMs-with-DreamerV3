@@ -37,6 +37,7 @@ class FrameStack(gym.Wrapper):
         assert len(self._frames) == self._k
         return np.concatenate(list(self._frames), axis=0)
 
+
 class ExtendedTimeStep(NamedTuple):
     step_type: Any
     reward: Any
@@ -56,9 +57,11 @@ class ExtendedTimeStep(NamedTuple):
     def __getitem__(self, attr):
         return getattr(self, attr)
 
+
 class ExtendedTimeStepWrapper(dm_env.Environment):
     def __init__(self, env):
         self._env = env
+
     def reset(self):
         obs = self._env.reset()
         time_step = collections.OrderedDict()
@@ -103,17 +106,15 @@ class ExtendedTimeStepWrapper(dm_env.Environment):
 
     def __getattr__(self, name):
         return getattr(self._env, name)
-    
-    
+
+
 def carla_make(action_repeat):
     env = make_env_10(action_repeat)
-    env = ExtendedTimeStepWrapper(FrameStack(env, 3))
+    env = ExtendedTimeStepWrapper(env, 3)
     return env
-    
-    
+
+
 def carla_make_eval(action_repeat):
     env = make_env_10_eval(action_repeat)
-    env = ExtendedTimeStepWrapper(FrameStack(env, 3))
+    env = ExtendedTimeStepWrapper(env, 3)
     return env
-    
-    

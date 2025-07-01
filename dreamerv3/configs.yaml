@@ -79,6 +79,7 @@ defaults:
         use_seed: True,
         in_distribution: False,
       }
+    carla: { size: [128, 128], repeat: 2 }
 
   replay:
     size: 5e6
@@ -350,6 +351,11 @@ maniskillview:
     }
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
+
+  carla:
+    run: { steps: 1.01e6, train_ratio: 256 }
+    agent.enc.simple.mults: [2, 3, 4, 4, 4]
+    agent.dec.simple.mults: [2, 3, 4, 4, 4]
 
 dmc_proprio:
   <<: *size1m
