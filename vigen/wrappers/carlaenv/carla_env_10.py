@@ -283,6 +283,7 @@ class CarlaEnv10(object):
             vehicle.destroy()
         for sensor in actor_list.filter("*sensor*"):
             print("Warning: removing old sensor")
+            sensor.stop()
             sensor.destroy()
 
         self.vehicle = None

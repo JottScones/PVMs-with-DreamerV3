@@ -65,6 +65,16 @@ class Carla(embodied.Env):
             return elements.Space(np.int32, (), 0, space.n)
         return elements.Space(space.dtype, space.shape, space.low, space.high)
 
+    def close(self):
+        actor_list = self.env.world.get_actors()
+        for vehicle in actor_list.filter("*vehicle*"):
+            print("Warning: removing old vehicle")
+            vehicle.destroy()
+        for sensor in actor_list.filter("*sensor*"):
+            print("Warning: removing old sensor")
+            sensor.stop()
+            sensor.destroy()
+
 
 """
 >>> ts, info = env.step([0.5,0.2])
