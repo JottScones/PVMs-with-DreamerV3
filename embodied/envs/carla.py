@@ -37,17 +37,8 @@ class Carla(embodied.Env):
 
     @functools.cached_property
     def act_space(self):
-        spaces = {self._act_key: self.env.action_space}
-
-        spaces = {k: self._convert(v) for k, v in spaces.items()}
-        spaces['reset'] = elements.Space(bool)
-        return spaces
-
-    @functools.cached_property
-    def act_space(self):
-        spaces = {self._act_key: self.env.action_space}
-
-        spaces = {k: self._convert(v) for k, v in spaces.items()}
+        spaces = {self._act_key: elements.Space(
+            np.float32, (2,), low=-1.0, high=1.0)}
         spaces['reset'] = elements.Space(bool)
         return spaces
 

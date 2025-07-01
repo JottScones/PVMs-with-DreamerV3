@@ -110,11 +110,11 @@ class ExtendedTimeStepWrapper(dm_env.Environment):
 
 def carla_make(action_repeat):
     env = make_env_10(action_repeat)
-    env = ExtendedTimeStepWrapper(env, 3)
+    env = ExtendedTimeStepWrapper(env)
     return env
 
 
 def carla_make_eval(action_repeat):
     env = make_env_10_eval(action_repeat)
-    env = ExtendedTimeStepWrapper(env, 3)
+    env = ExtendedTimeStepWrapper(env)
     return env
