@@ -459,8 +459,8 @@ class CarlaEnv10(object):
         current_waypoint = self.map.get_waypoint(
             vehicle_location, project_to_road=False)
         if current_waypoint is None:
-            print(
-                "Episode fail: current waypoint is off the road! (frame %d)" % self.count)
+            # print(
+            #     "Episode fail: current waypoint is off the road! (frame %d)" % self.count)
             info['reason_episode_ended'] = 'off_road'
             done, dist, vel_s = True, 100., 0.
             return dist, vel_s, speed, done, info
@@ -477,7 +477,7 @@ class CarlaEnv10(object):
                     road_id, goal_lane_id, vehicle_s + carla_waypoint_discretization)
 
         if goal_waypoint is None:
-            print("Episode fail: goal waypoint is off the road! (frame %d)" % self.count)
+            # print("Episode fail: goal waypoint is off the road! (frame %d)" % self.count)
             info['reason_episode_ended'] = 'off_road'
             done, dist, vel_s = True, 100., 0.
         else:
@@ -487,12 +487,12 @@ class CarlaEnv10(object):
 
             next_goal_waypoint = goal_waypoint.next(
                 0.1)  # waypoints are ever 0.02 meters
-            if len(next_goal_waypoint) != 1:
-                print('warning: {} waypoints (not 1)'.format(
-                    len(next_goal_waypoint)))
+            # if len(next_goal_waypoint) != 1:
+            # print('warning: {} waypoints (not 1)'.format(
+            #     len(next_goal_waypoint)))
             if len(next_goal_waypoint) == 0:
-                print("Episode done: no more waypoints left. (frame %d)" %
-                      self.count)
+                # print("Episode done: no more waypoints left. (frame %d)" %
+                #   self.count)
                 done, vel_s = True, 0.
             else:
                 location_ahead = next_goal_waypoint[0].transform.location
@@ -505,12 +505,12 @@ class CarlaEnv10(object):
 
         # not algorithm's fault, but the simulator sometimes throws the car in the air wierdly
         if vehicle_velocity.z > 1. and self.count < 20:
-            print("Episode done: vertical velocity too high ({}), usually a simulator glitch (frame {})".format(
-                vehicle_velocity.z, self.count))
+            # print("Episode done: vertical velocity too high ({}), usually a simulator glitch (frame {})".format(
+            # vehicle_velocity.z, self.count))
             done = True
         if vehicle_location.z > 0.5 and self.count < 20:
-            print("Episode done: vertical velocity too high ({}), usually a simulator glitch (frame {})".format(
-                vehicle_location.z, self.count))
+            # print("Episode done: vertical velocity too high ({}), usually a simulator glitch (frame {})".format(
+            # vehicle_location.z, self.count))
             done = True
 
         return dist, vel_s, speed, done, info
@@ -518,7 +518,7 @@ class CarlaEnv10(object):
     def _on_collision(self, event):
         impulse = event.normal_impulse
         intensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
-        print('Collision (intensity {})'.format(intensity))
+        # print('Collision (intensity {})'.format(intensity))
         self._collision_intensities_during_last_time_step.append(intensity)
 
     def reset(self):
@@ -680,7 +680,7 @@ class CarlaEnv10(object):
         for i in range(self.num_pedestrians):
             spawn_point = carla.Transform()
             spawn_point.location = self.world.get_random_location_from_navigation()
-            print(spawn_point.location)
+            # print(spawn_point.location)
             spawn_point.location.z = 0.1
             if (spawn_point.location != None):
                 spawn_points.append(spawn_point)
@@ -776,8 +776,8 @@ class CarlaEnv10(object):
         else:
             self.collide_count = 0
         if self.collide_count >= 20:
-            print("Episode fail: too many collisions ({})! (frame {})".format(
-                speed, self.collide_count))
+            # print("Episode fail: too many collisions ({})! (frame {})".format(
+            # speed, self.collide_count))
             done = True
 
         collision_cost = 0.0001 * collision_intensities_during_last_time_step
@@ -854,23 +854,23 @@ class CarlaEnv10(object):
         next_obs = np.transpose(next_obs, [2, 0, 1])  # 3 x 84 x 84/252/420
         assert next_obs.shape == self.observation_space.shape
         if self.count >= self._max_episode_steps:
-            print("Episode success: I've reached the episode horizon ({}).".format(
-                self._max_episode_steps))
+            # print("Episode success: I've reached the episode horizon ({}).".format(
+            # self._max_episode_steps))
             info['reason_episode_ended'] = 'success'
             done = True
         if speed < 0.02 and self.count >= 100 and self.count % 100 == 0:  # a hack, instead of a counter
-            print("Episode fail: speed too small ({}), think I'm stuck! (frame {})".format(
-                speed, self.count))
+            # print("Episode fail: speed too small ({}), think I'm stuck! (frame {})".format(
+            # speed, self.count))
             info['reason_episode_ended'] = 'stuck'
             done = True
         return next_obs, reward, done, info
 
     def finish(self):
         self.sync_mode.world.apply_settings(self.sync_mode._settings)
-        print('destroying actors.')
+        # print('destroying actors.')
         for actor in self.actor_list:
             actor.destroy()
-        print('\ndestroying %d vehicles' % len(self.vehicle_list))
+        # print('\ndestroying %d vehicles' % len(self.vehicle_list))
         self.client.apply_batch([carla.command.DestroyActor(x)
                                 for x in self.vehicle_list])
         time.sleep(0.5)
