@@ -6,8 +6,8 @@ from vigen.wrappers.carla_wrapper import carla_make
 
 
 class Carla(embodied.Env):
-    def __init__(self, task, repeat=2, size=(64, 64), obs_key="image", act_key="action", seed=None, **kwargs):
-        self.env = carla_make(repeat, size=size)
+    def __init__(self, task, repeat=2, size=(128, 128), obs_key="image", act_key="action", seed=None, **kwargs):
+        self.env = carla_make(repeat)
         self.size = size
 
         self._obs_key = obs_key

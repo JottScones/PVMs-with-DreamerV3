@@ -1,8 +1,3 @@
-import ruamel.yaml as yaml
-import portal
-import numpy as np
-import embodied
-import elements
 import importlib
 import os
 import pathlib
@@ -13,6 +8,12 @@ folder = pathlib.Path(__file__).parent
 sys.path.insert(0, str(folder.parent))
 sys.path.insert(1, str(folder.parent.parent))
 __package__ = folder.name
+
+import ruamel.yaml as yaml #noqa
+import portal #noqa
+import numpy as np #noqa
+import embodied #noqa
+import elements #noqa
 
 
 def main(argv=None):
