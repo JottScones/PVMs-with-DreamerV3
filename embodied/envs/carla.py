@@ -1,4 +1,5 @@
 import embodied
+import traceback
 import time
 import elements
 import functools
@@ -68,131 +69,98 @@ class Carla(embodied.Env):
         return elements.Space(space.dtype, space.shape, space.low, space.high)
 
     def close(self):
-        import time
-        import carla
+        """
+        Gracefully disconnects from the CARLA simulator, ensuring all actors
+        and sensors are properly destroyed.
+        """
+        print("Closing CARLA environment...")
+        if not hasattr(self.env, 'client'):
+            print("  WARN: No client found, environment may already be closed.")
+            return
 
+        try:
+            # -------------------------------------------------------------
+            # 1) First, destroy all sensors to stop data streams
+            # This is the most critical step to prevent "Invalid session" errors.
+            # -------------------------------------------------------------
+            if hasattr(self.env, 'world') and self.env.world is not None:
+                actors = self.env.world.get_actors()
+                sensors = actors.filter('*sensor*')
+                print(f"  Destroying {len(sensors)} sensors...")
 
-def close(self):
-    print("Closing CARLA environment...")
-
-    try:
-        # -------------------------------------------------------------
-        # 1) First, set asynchronous mode to prevent sync issues
-        # -------------------------------------------------------------
-        if hasattr(self.env, 'world') and self.env.world is not None:
-            settings = self.env.world.get_settings()
-            if settings.synchronous_mode:
-                print("  Setting asynchronous mode...")
-                settings.synchronous_mode = False
-                settings.fixed_delta_seconds = None
-                self.env.world.apply_settings(settings)
-                time.sleep(0.1)  # Give time for mode change
-
-        # -------------------------------------------------------------
-        # 2) Stop all sensors gracefully with timeout
-        # -------------------------------------------------------------
-        if hasattr(self.env, 'world') and self.env.world is not None:
-            sensors = self.env.world.get_actors().filter("*sensor*")
-            print(f"  Found {len(sensors)} sensors to stop")
-
-            for sensor in sensors:
-                try:
-                    if sensor.is_alive() and sensor.is_listening():
-                        print(
-                            f"    Stopping sensor {sensor.id} ({sensor.type_id})")
-                        sensor.stop()
-                        # Clear any pending callbacks
-                        if hasattr(sensor, '_callback'):
-                            sensor._callback = None
-                except Exception as e:
-                    print(
-                        f"    Warning: Error stopping sensor {sensor.id}: {e}")
-
-            # Wait for sensors to fully stop
-            time.sleep(0.2)
-
-        # -------------------------------------------------------------
-        # 3) Exit sync mode AFTER sensors are stopped
-        # -------------------------------------------------------------
-        if hasattr(self.env, 'sync_mode') and self.env.sync_mode is not None:
-            print("  Exiting sync mode...")
-            try:
-                self.env.sync_mode.__exit__(None, None, None)
-            except Exception as e:
-                print(f"    Warning: Error exiting sync mode: {e}")
-            finally:
-                self.env.sync_mode = None
-
-        # -------------------------------------------------------------
-        # 4) Destroy actors in batches with error handling
-        # -------------------------------------------------------------
-        if hasattr(self.env, 'world') and self.env.world is not None:
-            # Get fresh actor lists (they might have changed)
-            sensors = self.env.world.get_actors().filter("*sensor*")
-            vehicles = self.env.world.get_actors().filter("*vehicle*")
-            walkers = self.env.world.get_actors().filter("*walker*")
-
-            all_actors = list(sensors) + list(vehicles) + list(walkers)
-            print(f"  Destroying {len(all_actors)} actors...")
-
-            if all_actors:
-                # Destroy in smaller batches to avoid overwhelming the server
-                batch_size = 50
-                for i in range(0, len(all_actors), batch_size):
-                    batch = all_actors[i:i + batch_size]
-                    commands = [carla.command.DestroyActor(actor.id) for actor in batch
-                                if actor.is_alive()]
-
-                    if commands:
+                # Stop all sensors first to halt data transmission
+                for sensor in sensors:
+                    if sensor.is_alive:
                         try:
-                            response = self.env.client.apply_batch_sync(
-                                commands, True)
-                            # Check for errors in batch response
-                            for j, result in enumerate(response):
-                                if result.error:
-                                    print(
-                                        f"    Warning: Failed to destroy actor: {result.error}")
+                            sensor.stop()
                         except Exception as e:
-                            print(f"    Warning: Batch destroy error: {e}")
+                            print(
+                                f"  WARN: Error stopping sensor {sensor.id}: {e}")
 
-                    time.sleep(0.05)  # Small delay between batches
-
-        # -------------------------------------------------------------
-        # 5) Wait and verify cleanup
-        # -------------------------------------------------------------
-        time.sleep(0.3)  # Give server time to process destructions
-
-        if hasattr(self.env, 'world') and self.env.world is not None:
-            remaining_sensors = self.env.world.get_actors().filter("*sensor*")
-            remaining_vehicles = self.env.world.get_actors().filter("*vehicle*")
-
-            if remaining_sensors or remaining_vehicles:
-                print(
-                    f"  WARNING: {len(remaining_sensors)} sensors and {len(remaining_vehicles)} vehicles still alive")
-
-                # Force destroy remaining actors one by one
-                for actor in list(remaining_sensors) + list(remaining_vehicles):
+                # Now, create and apply destroy commands for sensors
+                sensor_destroy_commands = [carla.command.DestroyActor(
+                    s.id) for s in sensors if s.is_alive]
+                if sensor_destroy_commands:
                     try:
-                        if actor.is_alive():
-                            actor.destroy()
+                        self.env.client.apply_batch_sync(
+                            sensor_destroy_commands, True)
                     except Exception as e:
                         print(
-                            f"    Force destroy failed for actor {actor.id}: {e}")
-            else:
-                print("  All actors destroyed successfully")
+                            f"  ERROR: Failed during sensor batch destruction: {e}")
 
-        # -------------------------------------------------------------
-        # 6) Clean up client connection references
-        # -------------------------------------------------------------
-        if hasattr(self.env, 'client'):
-            # Don't destroy the client, just clear references
-            print("  Clearing client references...")
+                # Give the server a moment to process sensor destruction
+                time.sleep(0.5)
 
-        print("CARLA environment closed successfully")
+            # -------------------------------------------------------------
+            # 2) Set world back to asynchronous mode
+            # Do this *after* sensors are gone to avoid sync/tick issues.
+            # -------------------------------------------------------------
+            if hasattr(self.env, 'world') and self.env.world is not None:
+                settings = self.env.world.get_settings()
+                if settings.synchronous_mode:
+                    print("  Setting asynchronous mode...")
+                    settings.synchronous_mode = False
+                    settings.fixed_delta_seconds = None
+                    self.env.world.apply_settings(settings)
+                    time.sleep(0.1)
 
-    except Exception as e:
-        print(f"Error during CARLA cleanup: {e}")
-        # Even if cleanup fails, we should continue
+            # -------------------------------------------------------------
+            # 3) Destroy remaining actors (vehicles, walkers, etc.)
+            # -------------------------------------------------------------
+            if hasattr(self.env, 'world') and self.env.world is not None:
+                actors = self.env.world.get_actors()
+                # Exclude sensors as they should already be destroyed
+                non_sensor_actors = [
+                    actor for actor in actors if 'sensor' not in actor.type_id]
+
+                print(
+                    f"  Destroying {len(non_sensor_actors)} non-sensor actors...")
+                actor_destroy_commands = [carla.command.DestroyActor(
+                    a.id) for a in non_sensor_actors if a.is_alive]
+
+                if actor_destroy_commands:
+                    try:
+                        self.env.client.apply_batch_sync(
+                            actor_destroy_commands, True)
+                    except Exception as e:
+                        print(
+                            f"  ERROR: Failed during non-sensor batch destruction: {e}")
+                time.sleep(0.2)
+
+            # -------------------------------------------------------------
+            # 4) Final verification
+            # -------------------------------------------------------------
+            if hasattr(self.env, 'world') and self.env.world is not None:
+                remaining_actors = self.env.world.get_actors()
+                if len(remaining_actors) > 1:  # World controller is actor 0
+                    print(
+                        f"  WARN: {len(remaining_actors)} actors still remain in the world.")
+
+            print("CARLA environment closed successfully.")
+
+        except Exception as e:
+            print(f"FATAL ERROR during CARLA cleanup: {e}")
+            print(f"Trace: {traceback.format_exc()}")
 
 
 """
