@@ -7,7 +7,7 @@ render_display: 0  # 0, 1
 display_text: 0  # 0, 1
 record_display_images: 0  # 0, 1
 record_rl_images: 0  # 0, 1
-rl_image_size: 84
+rl_image_size: 256 
 fov: 60  # degrees for rl camera
 
 cameras:  #  - foresight0 - foresight1 - foresight2 - backsight - side - above
