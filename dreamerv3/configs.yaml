@@ -61,6 +61,7 @@ defaults:
       { size: [64, 64], break_speed: 100.0, logs: False, length: 36000 }
     dmc: { size: [64, 64], repeat: 1, proprio: True, image: True, camera: -1 }
     loconav: { size: [64, 64], repeat: 1, camera: -1 }
+    carla: { size: [128, 128], repeat: 2 }
     maniskill:
       {
         size: [128, 128],
@@ -79,7 +80,6 @@ defaults:
         use_seed: True,
         in_distribution: False,
       }
-    carla: { size: [128, 128], repeat: 2 }
 
   replay:
     size: 5e6
@@ -353,6 +353,7 @@ maniskillview:
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
 
 carla:
+  task: carla_town04 # town is not actually changable for now
   run: { steps: 1.01e6, train_ratio: 256 }
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
