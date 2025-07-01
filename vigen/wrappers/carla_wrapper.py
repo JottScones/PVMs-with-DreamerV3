@@ -1,10 +1,10 @@
-import gym
+import gymnasium as gym
 from collections import deque
 from typing import Any, NamedTuple
 from dm_env import StepType, specs
 import collections
 import dm_env
-from carlaenv.utils import make_env_10, make_env_10_eval
+from vigen.wrappers.carlaenv.utils import make_env_10, make_env_10_eval
 import numpy as np
 
 

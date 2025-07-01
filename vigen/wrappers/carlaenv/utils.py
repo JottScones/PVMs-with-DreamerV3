@@ -1,8 +1,8 @@
 from typing import Dict
 from omegaconf import DictConfig
 # from carlaenv.carla_env import CarlaEnv
-from carlaenv.carla_env_10 import CarlaEnv10
-from carlaenv.carla_env_10_eval import CarlaEnv10_eval
+from vigen.wrappers.carlaenv.carla_env_10 import CarlaEnv10
+from vigen.wrappers.carlaenv.carla_env_10_eval import CarlaEnv10_eval
 from hydra import compose, initialize
 import hydra
 
