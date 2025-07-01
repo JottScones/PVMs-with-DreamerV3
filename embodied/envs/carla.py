@@ -68,45 +68,51 @@ class Carla(embodied.Env):
         return elements.Space(space.dtype, space.shape, space.low, space.high)
 
     def close(self):
-        print("Closing CARLA environment...")
+        import time
+        import carla
 
-        # -------------------------------------------------------------
-        # 1) Stop every listening sensor *while the world is still in
-        #    synchronous mode* so no further frames are produced.
-        # -------------------------------------------------------------
-        actors = self.env.world.get_actors()
-        sensors = actors.filter("*sensor*")
-        vehicles = actors.filter("*vehicle*")
 
-        for s in sensors:
-            if s.is_listening():
-                s.stop()
-        self.env.world.tick()          # let server process the STOP RPCs
+def close(self):
+    print("Closing CARLA environment...")
 
-        # -------------------------------------------------------------
-        # 2) Now dismantle CarlaSyncMode (queues are already quiet).
-        # -------------------------------------------------------------
-        if getattr(self.env, "sync_mode", None) is not None:
-            print("Sync Mode begone")
-            self.env.sync_mode.__exit__(None, None, None)
-            self.env.sync_mode = None
+    # -------------------------------------------------------------
+    # 1) Stop every listening sensor *before* we touch sync mode.
+    # -------------------------------------------------------------
+    sensors = self.env.world.get_actors().filter("*sensor*")
+    vehicles = self.env.world.get_actors().filter("*vehicle*")
+    for s in sensors:
+        print(
+            f"  stopping sensor {s.id} ({s.type_id})  listening={s.is_listening()}")
+        if s.is_listening():
+            s.stop()
 
-        # -------------------------------------------------------------
-        # 3) Destroy actors.
-        # -------------------------------------------------------------
-        if sensors or vehicles:
-            self.env.client.apply_batch_sync(
-                [carla.command.DestroyActor(x)
-                 for x in list(sensors) + list(vehicles)],
-                True                                    # do_tick = True
-            )
+    self.env.world.tick()     # make sure STOP reaches the server
+    time.sleep(0.02)          # safety margin on busy machines
 
-        # -------------------------------------------------------------
-        # 4) Verify.
-        # -------------------------------------------------------------
-        leftovers = self.env.world.get_actors().filter("*sensor*")
-        print("All sensors destroyed." if not leftovers
-              else f"WARNING: {len(leftovers)} sensor(s) still alive")
+    # -------------------------------------------------------------
+    # 2) Now we can drop CarlaSyncMode safely.
+    # -------------------------------------------------------------
+    if getattr(self.env, "sync_mode", None):
+        print("Sync Mode begone")
+        self.env.sync_mode.__exit__(None, None, None)
+        self.env.sync_mode = None
+
+    # -------------------------------------------------------------
+    # 3) Destroy all actors in one synchronous batch.
+    # -------------------------------------------------------------
+    commands = [carla.command.DestroyActor(x)
+                for x in list(sensors) + list(vehicles)]
+    if commands:
+        self.env.client.apply_batch_sync(commands)  # True = also tick
+
+    # -------------------------------------------------------------
+    # 4) Verify nothing is left.
+    # -------------------------------------------------------------
+    leftovers = self.env.world.get_actors().filter("*sensor*")
+    if leftovers:
+        print("WARNING:", len(leftovers), "sensor(s) still alive – investigate")
+    else:
+        print("All sensors destroyed successfully.")
 
 
 """
