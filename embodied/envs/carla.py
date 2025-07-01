@@ -2,6 +2,7 @@ import embodied
 import elements
 import functools
 import numpy as np
+import carla
 from vigen.wrappers.carla_wrapper import carla_make
 
 
@@ -66,14 +67,27 @@ class Carla(embodied.Env):
         return elements.Space(space.dtype, space.shape, space.low, space.high)
 
     def close(self):
-        actor_list = self.env.world.get_actors()
-        for vehicle in actor_list.filter("*vehicle*"):
-            print("Warning: removing old vehicle")
-            vehicle.destroy()
-        for sensor in actor_list.filter("*sensor*"):
-            print("Warning: removing old sensor")
-            sensor.stop()
-            sensor.destroy()
+        print("Closing CARLA environment...")
+        actors = self.world.get_actors()
+        sensors = actors.filter("*sensor*")
+        vehicles = actors.filter("*vehicle*")
+
+        for s in sensors:
+            if getattr(s, "is_listening", False):
+                s.stop()
+        self.world.tick()                # give the server one frame to process the STOPs
+
+        self.client.apply_batch([carla.command.DestroyActor(x)
+                                for x in list(sensors) + list(vehicles)])
+        self.world.tick()                # flush destruction
+
+        # 5) Verify nothing is left.
+        leftovers = self.world.get_actors().filter("*sensor*")
+        if leftovers:
+            print("WARNING:", len(leftovers),
+                  "sensors still alive → investigate")
+        else:
+            print("All sensors destroyed successfully.")
 
 
 """
