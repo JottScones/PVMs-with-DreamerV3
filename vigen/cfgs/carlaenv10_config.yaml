@@ -22,7 +22,7 @@ weather: Default  # ClearNoon ClearSunset CloudyNoon CloudySunset Default HardRa
                          # MidRainSunset MidRainyNoon SoftRainNoon SoftRainSunset WetCloudyNoon WetCloudySunset
                          # WetNoon WetSunset
 changing_weather_speed: 0.1  # [0, 1]
-vehicle: vehicle.lincoln.mkz2017  # random vehicle.audi.a2 vehicle.audi.tt vehicle.lincoln.mkz2017 vehicle.nissan.patrol ... vehicle.jeep.wrangler_rubicon vehicle.mini.cooperst vehicle.bmw.grandtourer
+vehicle: vehicle.lincoln.mkz_2017  # random vehicle.audi.a2 vehicle.audi.tt vehicle.lincoln.mkz2017 vehicle.nissan.patrol ... vehicle.jeep.wrangler_rubicon vehicle.mini.cooperst vehicle.bmw.grandtourer
 # start_lane: 3
 vehicle_spawn_point_id: train  # random or 0 to 100+
 num_other_cars: 40  # recommend 0 to 100

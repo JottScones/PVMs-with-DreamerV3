@@ -266,7 +266,7 @@ class CarlaEnv10(object):
             self.clock = pygame.time.Clock()
 
         self.client = carla.Client(cfg_dict['ip'], cfg_dict['port'])
-        self.client.set_timeout(500.0)
+        self.client.set_timeout(60.0)
 
         self.world = self.client.load_world(cfg_dict['map'])  # change map here
         self.map = self.world.get_map()
@@ -290,6 +290,7 @@ class CarlaEnv10(object):
         self.vehicle_list = []  # their ids
         # self.pedestrian_list = []  # their ids
         self.vehicles = None
+
         self.reset_vehicle()  # creates self.vehicle
         self.actor_list.append(self.vehicle)
         print(3)
@@ -550,7 +551,7 @@ class CarlaEnv10(object):
         # start_x = 1.5 + 3.5 * start_lane  # 3.5 = lane width
         # self.vehicle_start_pose = carla.Transform(carla.Location(x=start_x, y=0, z=0.1), carla.Rotation(yaw=-90))
         if self.cfg_dict['vehicle_spawn_point_id'] == 'train':
-            assert self.map.name == "Town04"
+            assert "Town04" in self.map.name 
             start_lane = np.random.choice([1, 2, 3, 4])
             start_x = 1.5 + 3.5 * start_lane  # 3.5 = lane width
             self.vehicle_start_pose = carla.Transform(

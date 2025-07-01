@@ -1,4 +1,4 @@
-import gymnasium as gym
+import gym
 from collections import deque
 from typing import Any, NamedTuple
 from dm_env import StepType, specs
