@@ -9,8 +9,10 @@ from vigen.wrappers.carla_wrapper import carla_make
 
 
 class Carla(embodied.Env):
-    def __init__(self, task, repeat=2, size=(128, 128), obs_key="image", act_key="action", seed=None, **kwargs):
-        self.env = carla_make(repeat)
+    def __init__(self, task, repeat=2, size=(128, 128), obs_key="image", act_key="action", seed=None, make=True, **kwargs):
+        if make:
+            self.env = carla_make(repeat)
+
         self.size = size
 
         self._obs_key = obs_key
@@ -69,98 +71,7 @@ class Carla(embodied.Env):
         return elements.Space(space.dtype, space.shape, space.low, space.high)
 
     def close(self):
-        """
-        Gracefully disconnects from the CARLA simulator, ensuring all actors
-        and sensors are properly destroyed.
-        """
-        print("Closing CARLA environment...")
-        if not hasattr(self.env, 'client'):
-            print("  WARN: No client found, environment may already be closed.")
-            return
-
-        try:
-            # -------------------------------------------------------------
-            # 1) First, destroy all sensors to stop data streams
-            # This is the most critical step to prevent "Invalid session" errors.
-            # -------------------------------------------------------------
-            if hasattr(self.env, 'world') and self.env.world is not None:
-                actors = self.env.world.get_actors()
-                sensors = actors.filter('*sensor*')
-                print(f"  Destroying {len(sensors)} sensors...")
-
-                # Stop all sensors first to halt data transmission
-                for sensor in sensors:
-                    if sensor.is_alive:
-                        try:
-                            sensor.stop()
-                        except Exception as e:
-                            print(
-                                f"  WARN: Error stopping sensor {sensor.id}: {e}")
-
-                # Now, create and apply destroy commands for sensors
-                sensor_destroy_commands = [carla.command.DestroyActor(
-                    s.id) for s in sensors if s.is_alive]
-                if sensor_destroy_commands:
-                    try:
-                        self.env.client.apply_batch_sync(
-                            sensor_destroy_commands, True)
-                    except Exception as e:
-                        print(
-                            f"  ERROR: Failed during sensor batch destruction: {e}")
-
-                # Give the server a moment to process sensor destruction
-                time.sleep(0.5)
-
-            # -------------------------------------------------------------
-            # 2) Set world back to asynchronous mode
-            # Do this *after* sensors are gone to avoid sync/tick issues.
-            # -------------------------------------------------------------
-            if hasattr(self.env, 'world') and self.env.world is not None:
-                settings = self.env.world.get_settings()
-                if settings.synchronous_mode:
-                    print("  Setting asynchronous mode...")
-                    settings.synchronous_mode = False
-                    settings.fixed_delta_seconds = None
-                    self.env.world.apply_settings(settings)
-                    time.sleep(0.1)
-
-            # -------------------------------------------------------------
-            # 3) Destroy remaining actors (vehicles, walkers, etc.)
-            # -------------------------------------------------------------
-            if hasattr(self.env, 'world') and self.env.world is not None:
-                actors = self.env.world.get_actors()
-                # Exclude sensors as they should already be destroyed
-                non_sensor_actors = [
-                    actor for actor in actors if 'sensor' not in actor.type_id]
-
-                print(
-                    f"  Destroying {len(non_sensor_actors)} non-sensor actors...")
-                actor_destroy_commands = [carla.command.DestroyActor(
-                    a.id) for a in non_sensor_actors if a.is_alive]
-
-                if actor_destroy_commands:
-                    try:
-                        self.env.client.apply_batch_sync(
-                            actor_destroy_commands, True)
-                    except Exception as e:
-                        print(
-                            f"  ERROR: Failed during non-sensor batch destruction: {e}")
-                time.sleep(0.2)
-
-            # -------------------------------------------------------------
-            # 4) Final verification
-            # -------------------------------------------------------------
-            if hasattr(self.env, 'world') and self.env.world is not None:
-                remaining_actors = self.env.world.get_actors()
-                if len(remaining_actors) > 1:  # World controller is actor 0
-                    print(
-                        f"  WARN: {len(remaining_actors)} actors still remain in the world.")
-
-            print("CARLA environment closed successfully.")
-
-        except Exception as e:
-            print(f"FATAL ERROR during CARLA cleanup: {e}")
-            print(f"Trace: {traceback.format_exc()}")
+        pass
 
 
 """

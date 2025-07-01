@@ -9,11 +9,11 @@ sys.path.insert(0, str(folder.parent))
 sys.path.insert(1, str(folder.parent.parent))
 __package__ = folder.name
 
-import ruamel.yaml as yaml #noqa
-import portal #noqa
-import numpy as np #noqa
-import embodied #noqa
-import elements #noqa
+import ruamel.yaml as yaml  # noqa
+import portal  # noqa
+import numpy as np  # noqa
+import embodied  # noqa
+import elements  # noqa
 
 
 def main(argv=None):
@@ -126,7 +126,7 @@ def main(argv=None):
 
 def make_agent(config):
     from .agent import Agent
-    env = make_env(config, 0)
+    env = make_env(config, 0, make=False)
     def notlog(k): return not k.startswith('log/')
     obs_space = {k: v for k, v in env.obs_space.items() if notlog(k)}
     act_space = {k: v for k, v in env.act_space.items() if k != 'reset'}
