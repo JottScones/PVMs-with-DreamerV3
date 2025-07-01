@@ -68,7 +68,9 @@ class Carla(embodied.Env):
 
     def close(self):
         print("Closing CARLA environment...")
+
         if hasattr(self.env, "sync_mode") and self.env.sync_mode is not None:
+            print("Sync Mode begone")
             # same as leaving the with-block
             self.env.sync_mode.__exit__(None, None, None)
             self.env.sync_mode = None
@@ -78,15 +80,19 @@ class Carla(embodied.Env):
         vehicles = actors.filter("*vehicle*")
 
         for s in sensors:
-            if getattr(s, "is_listening", False):
+            if s.is_listening():
                 s.stop()
+        print('ticking world')
         self.env.world.tick()                # give the server one frame to process the STOPs
 
-        self.env.client.apply_batch([carla.command.DestroyActor(x)
-                                     for x in list(sensors) + list(vehicles)])
+        print('destroying in batch')
+        self.env.client.apply_batch([carla.command.DestroyActor(x) for x in list(sensors) + list(vehicles)])
+
+        print('ticking world')
         self.env.world.tick()                # flush destruction
 
         # 5) Verify nothing is left.
+        print('verifying leftovers')
         leftovers = self.env.world.get_actors().filter("*sensor*")
         if leftovers:
             print("WARNING:", len(leftovers),
