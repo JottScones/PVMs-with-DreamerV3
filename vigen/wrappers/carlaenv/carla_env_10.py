@@ -7,15 +7,11 @@
 # For a copy, see <https://opensource.org/licenses/MIT>.
 #
 # Modified for DBC paper.
-from agents.tools.misc import is_within_distance, compute_distance
-from agents.navigation.local_planner import LocalPlanner
-from dotmap import DotMap
 import math
 import numpy as np
 import carla
 import sys
 import random
-import glob
 import os
 import sys
 import time
@@ -44,6 +40,10 @@ try:
     import queue
 except ImportError:
     import Queue as queue
+
+from agents.tools.misc import is_within_distance, compute_distance  # noqa
+from agents.navigation.local_planner import LocalPlanner  # noqa
+from dotmap import DotMap  # noqa
 
 
 def is_within_distance_ahead(target_transform, current_transform, max_distance):
