@@ -31,7 +31,7 @@ class Carla(embodied.Env):
 
     def _obs(self, obs, reward, is_first=False, is_last=False, is_terminal=False):
         obs = {
-            self._obs_key: obs,
+            self._obs_key: obs.transpose([1,2,0]),
             "reward": np.float32(reward),
             "is_first": is_first,
             "is_last": is_last,
