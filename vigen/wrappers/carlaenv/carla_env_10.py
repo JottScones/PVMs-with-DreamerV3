@@ -266,7 +266,7 @@ class CarlaEnv10(object):
 
         print("Attempting to connect to CARLA server...")
         self.client = carla.Client(cfg_dict['ip'], cfg_dict['port'])
-        self.client.set_timeout(20.0)
+        self.client.set_timeout(60.0)
         self.world = self.client.load_world(cfg_dict['map'])  # change map here
 
         self.client.set_timeout(2.0)
@@ -597,7 +597,8 @@ class CarlaEnv10(object):
         blueprints = [x for x in blueprints if int(
             x.get_attribute('number_of_wheels')) == 4]
 
-        vehicle_waypoint = self.map.get_waypoint(self.vehicle.get_location())
+        vehicle_location = self.vehicle.get_location()
+        vehicle_waypoint = self.map.get_waypoint(vehicle_location)
         next_waypoint = random.choice(vehicle_waypoint.next(4.0))
         other_vehicle_transforms = []
 
@@ -613,7 +614,7 @@ class CarlaEnv10(object):
 
             # Check that the point is not too close to the ego vehicle or other distant cars
             is_too_close = False
-            if spawn_point.location.distance(vehicle_waypoint) < MIN_SPAWN_DISTANCE:
+            if spawn_point.location.distance(vehicle_location) < MIN_SPAWN_DISTANCE:
                 is_too_close = True
             if not is_too_close:
                 for t in other_vehicle_transforms:
@@ -656,7 +657,7 @@ class CarlaEnv10(object):
 
             # Check the nearby candidate against the ego vehicle AND all previously placed distant cars
             is_too_close = False
-            if candidate_transform.location.distance(vehicle_waypoint) < MIN_SPAWN_DISTANCE:
+            if candidate_transform.location.distance(vehicle_location) < MIN_SPAWN_DISTANCE:
                 is_too_close = True
             if not is_too_close:
                 for t in other_vehicle_transforms:
