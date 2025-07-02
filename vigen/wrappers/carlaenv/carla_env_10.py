@@ -266,7 +266,7 @@ class CarlaEnv10(object):
 
         print("Attempting to connect to CARLA server...")
         self.client = carla.Client(cfg_dict['ip'], cfg_dict['port'])
-        self.client.set_timeout(60.0)
+        self.client.set_timeout(2.0)
 
         self.world = self.client.load_world(cfg_dict['map'])  # change map here
         self.map = self.world.get_map()
@@ -718,6 +718,8 @@ class CarlaEnv10(object):
             next_obs, reward, done, info = self._simulator_step(action)
             rewards.append(reward)
             if done:
+                print("Episode done: {} | steps: {}".format(
+                    info['reason_episode_ended'], self.count))
                 break
         return next_obs, np.mean(rewards), done, info  # just last info?
 
@@ -753,7 +755,7 @@ class CarlaEnv10(object):
         else:
             throttle, steer, brake = 0., 0., 0.
 
-        snapshot_image_list = self.sync_mode.tick(timeout=8.0)
+        snapshot_image_list = self.sync_mode.tick(timeout=2.0)
         snapshot = snapshot_image_list[0]
         ims = snapshot_image_list[1:]
         if self.render_display:
