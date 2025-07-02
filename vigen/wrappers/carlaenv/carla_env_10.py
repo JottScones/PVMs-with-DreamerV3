@@ -578,6 +578,8 @@ class CarlaEnv10(object):
         self.vehicle.set_target_angular_velocity(carla.Vector3D())
 
     def reset_other_vehicles(self):
+        MIN_SPAWN_DISTANCE = 6.0
+
         if self.num_other_cars == 0:
             return
 
@@ -595,45 +597,79 @@ class CarlaEnv10(object):
         blueprints = [x for x in blueprints if int(
             x.get_attribute('number_of_wheels')) == 4]
 
+        vehicle_waypoint = self.map.get_waypoint(self.vehicle.get_location())
+        next_waypoint = random.choice(vehicle_waypoint.next(4.0))
+        other_vehicle_transforms = []
+
         # other_cars
         assert self.num_other_cars >= self.num_other_cars_nearby, 'num_other_cars should >= self.num_other_cars_nearby'
-        other_vehicle_spawn_point_ids = random.sample(range(
-            len(self.vehicle_spawn_points)), self.num_other_cars - self.num_other_cars_nearby)
-        # while self.vehicle_spawn_point_id in other_vehicle_spawn_point_ids:
-        #     other_vehicle_spawn_point_ids = random.sample(range(len(self.vehicle_spawn_points)), self.num_other_cars)
-        other_vehicle_transforms = [self.vehicle_spawn_points[i]
-                                    for i in other_vehicle_spawn_point_ids]
+        num_distant_needed = self.num_other_cars - self.num_other_cars_nearby
+        distant_spawn_points = random.sample(
+            self.vehicle_spawn_points, len(self.vehicle_spawn_points))
+
+        for spawn_point in distant_spawn_points:
+            if len(other_vehicle_transforms) >= num_distant_needed:
+                break  # We have enough distant cars
+
+            # Check that the point is not too close to the ego vehicle or other distant cars
+            is_too_close = False
+            if spawn_point.location.distance(vehicle_waypoint) < MIN_SPAWN_DISTANCE:
+                is_too_close = True
+            if not is_too_close:
+                for t in other_vehicle_transforms:
+                    if spawn_point.location.distance(t.location) < MIN_SPAWN_DISTANCE:
+                        is_too_close = True
+                        break
+
+            if not is_too_close:
+                other_vehicle_transforms.append(spawn_point)
+
         for i in range(len(other_vehicle_transforms)):
             # in Town02, must start higher than 0.22
             other_vehicle_transforms[i].location.z = 0.22
-        # other_cars_nearby
-        vehicle_waypoint = self.map.get_waypoint(self.vehicle.get_location())
-        next_waypoint = random.choice(vehicle_waypoint.next(4.0))
 
+        # other_cars_nearby
         road_id = next_waypoint.road_id
         s = next_waypoint.s
 
-        for _ in range(self.num_other_cars_nearby):
-            # lane_id = random.choice([-1, -2, -3, -4])
-            if vehicle_waypoint.lane_id < 0:
-                lane_id = random.choice([-1, -2, -3, -4])
-            elif vehicle_waypoint.lane_id > 0:
-                lane_id = random.choice([1, 2, 3, 4])
+        nearby_tries = 0
+        max_nearby_tries = self.num_other_cars_nearby * 10  # Failsafe for this stage
+        is_too_close = False
+        while (len(other_vehicle_transforms) < self.num_other_cars) and (nearby_tries < max_nearby_tries):
+            nearby_tries += 1
 
-            vehicle_s = np.random.uniform(s - 40., s + 40)
-            other_vehicle_waypoint = self.map.get_waypoint_xodr(
-                road_id, lane_id, vehicle_s)
-            while other_vehicle_waypoint is None:
-                if vehicle_waypoint.lane_id < 0:
-                    lane_id = random.choice([-1, -2, -3, -4])
-                elif vehicle_waypoint.lane_id > 0:
-                    lane_id = random.choice([1, 2, 3, 4])
+            # Generate a candidate waypoint for a nearby car
+            lane_id = random.choice(
+                [-1, -2, -3, -4]) if vehicle_waypoint.lane_id < 0 else random.choice([1, 2, 3, 4])
+            if is_too_close:
                 vehicle_s = np.random.uniform(s - 100., s + 100)
-                other_vehicle_waypoint = self.map.get_waypoint_xodr(
-                    road_id, lane_id, vehicle_s)
-            if other_vehicle_waypoint is not None:
-                other_vehicle_transforms.append(
-                    other_vehicle_waypoint.transform)
+            else:
+                vehicle_s = np.random.uniform(s - 40., s + 40)
+
+            candidate_waypoint = self.map.get_waypoint_xodr(
+                road_id, lane_id, vehicle_s)
+
+            if candidate_waypoint is None:
+                continue  # Failed to generate a valid waypoint, try again
+
+            candidate_transform = candidate_waypoint.transform
+
+            # Check the nearby candidate against the ego vehicle AND all previously placed distant cars
+            is_too_close = False
+            if candidate_transform.location.distance(vehicle_waypoint) < MIN_SPAWN_DISTANCE:
+                is_too_close = True
+            if not is_too_close:
+                for t in other_vehicle_transforms:
+                    if candidate_transform.location.distance(t.location) < MIN_SPAWN_DISTANCE:
+                        is_too_close = True
+                        break
+
+            if not is_too_close:
+                other_vehicle_transforms.append(candidate_transform)
+
+        if len(other_vehicle_transforms) < self.num_other_cars:
+            print(
+                f"WARN: Could only place {len(other_vehicle_transforms)} out of {self.num_other_cars} requested NPCs.")
 
         # Spawn vehicles
         batch = []
