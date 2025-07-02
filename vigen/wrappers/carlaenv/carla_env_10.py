@@ -637,8 +637,13 @@ class CarlaEnv10(object):
 
         # Spawn vehicles
         batch = []
+        print("--- GENERATING NPC SPAWN BATCH ---")  # Add this for context
         for n, transform in enumerate(other_vehicle_transforms):
             transform.location.z = 0.22
+
+            print(
+                f"LOG: Preparing to spawn NPC {n} at X={transform.location.x:.2f}, Y={transform.location.y:.2f}, Z={transform.location.z:.2f}")
+
             blueprint = random.choice(blueprints)
             if blueprint.has_attribute('color'):
                 color = random.choice(
