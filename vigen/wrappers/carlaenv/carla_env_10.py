@@ -651,13 +651,10 @@ class CarlaEnv10(object):
             blueprint.set_attribute('role_name', 'autopilot')
             batch.append(carla.command.SpawnActor(blueprint, transform).then(
                 carla.command.SetAutopilot(carla.command.FutureActor, True, self.cfg_dict['traffic_manager_port'])))
-        for response in self.client.apply_batch_sync(batch, False):
-            self.vehicle_list.append(response.actor_id)
 
-        for response in self.client.apply_batch_sync(batch):
-            if response.error:
-                pass
-            else:
+        responses = self.client.apply_batch_sync(batch, True)
+        for response in responses:
+            if not response.error:
                 self.vehicle_list.append(response.actor_id)
 
         traffic_manager.global_percentage_speed_difference(30.0)
