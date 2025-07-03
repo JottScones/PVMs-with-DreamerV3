@@ -13,7 +13,7 @@ from vigen.wrappers.carla_wrapper import carla_make, carla_make_eval
 class Carla(embodied.Env):
     def __init__(self, task, repeat=2, size=(128, 128), obs_key="image", act_key="action", seed=None, make=True, **kwargs):
         if make:
-            self.env = carla_make(repeat)
+            self.env = carla_make(repeat, rl_image_size=size[0], **kwargs)
             self.set_seeds(seed)
 
         self.size = size

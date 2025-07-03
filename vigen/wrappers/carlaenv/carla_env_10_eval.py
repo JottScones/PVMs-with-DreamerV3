@@ -50,9 +50,6 @@ try:
 except ImportError:
     import Queue as queue
 
-from vigen.wrappers.carlaenv.reimplement import Agent, AgentState  # noqa
-from agents.navigation.local_planner import LocalPlanner  # noqa
-
 
 class CarlaSyncMode(object):
     """
@@ -475,14 +472,13 @@ class CarlaEnv10_eval(object):
                                                              size=self.action_space.shape[0]).astype(np.float32)
 
         # roaming carla agent
-        self.agent = None
         self.count = 0
         self.dist_s = 0
         self.return_ = 0
         self.velocities = []
         self.collide_count = 0
         self.world.tick()
-        self.reset()  # creates self.agent
+        self.reset()
 
     def dist_from_center_lane(self, vehicle, info):
         # assume on highway
@@ -573,8 +569,6 @@ class CarlaEnv10_eval(object):
         self.world.tick()
         self.reset_other_vehicles()
         self.world.tick()
-        self.agent = RoamingAgentModified(
-            self.vehicle, follow_traffic_lights=False)
         self.count = 0
         self.dist_s = 0
         self.return_ = 0
@@ -946,84 +940,3 @@ class CarlaEnv10_eval(object):
         time.sleep(0.5)
         pygame.quit()
         print('done.')
-
-
-class LocalPlannerModified(LocalPlanner):
-
-    def __del__(self):
-        pass  # otherwise it deletes our vehicle object
-
-    def run_step(self):
-        # otherwise by default shows waypoints, that interfere with our camera
-        return super().run_step(debug=False)
-
-
-class RoamingAgentModified(Agent):
-    """
-    RoamingAgent implements a basic agent that navigates scenes making random
-    choices when facing an intersection.
-
-    This agent respects traffic lights and other vehicles.
-    """
-
-    def __init__(self, vehicle, follow_traffic_lights=True):
-        """
-
-        :param vehicle: actor to apply to local planner logic onto
-        """
-        super(RoamingAgentModified, self).__init__(vehicle)
-        self._proximity_threshold = 10.0  # meters
-        self._state = AgentState.NAVIGATING
-        self._follow_traffic_lights = follow_traffic_lights
-
-        # for throttle 0.5, 0.75, 1.0
-        args_lateral_dict = {
-            'K_P': 1.0,
-            'K_D': 0.005,
-            'K_I': 0.0,
-            'dt': 1.0 / 20.0}
-        opt_dict = {'lateral_control_dict': args_lateral_dict}
-
-        self._local_planner = LocalPlannerModified(self._vehicle, opt_dict)
-
-    def run_step(self, debug=False):
-        """
-        Execute one step of navigation.
-        :return: carla.VehicleControl
-        """
-
-        # is there an obstacle in front of us?
-        hazard_detected = False
-
-        # retrieve relevant elements for safe navigation, i.e.: traffic lights
-        # and other vehicles
-        actor_list = self._world.get_actors()
-        vehicle_list = actor_list.filter("*vehicle*")
-        lights_list = actor_list.filter("*traffic_light*")
-
-        # check possible obstacles
-        vehicle_state, vehicle = self._is_vehicle_hazard(vehicle_list)
-        if vehicle_state:
-            if debug:
-                print('!!! VEHICLE BLOCKING AHEAD [{}])'.format(vehicle.id))
-
-            self._state = AgentState.BLOCKED_BY_VEHICLE
-            hazard_detected = True
-
-        # check for the state of the traffic lights
-        light_state, traffic_light = self._is_light_red(lights_list)
-        if light_state and self._follow_traffic_lights:
-            if debug:
-                print('=== RED LIGHT AHEAD [{}])'.format(traffic_light.id))
-
-            self._state = AgentState.BLOCKED_RED_LIGHT
-            hazard_detected = True
-
-        if hazard_detected:
-            control = self.emergency_stop()
-        else:
-            self._state = AgentState.NAVIGATING
-            # standard local planner behavior
-            control = self._local_planner.run_step()
-
-        return control
