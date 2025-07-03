@@ -806,7 +806,7 @@ class CarlaEnv10(object):
         else:
             throttle, steer, brake = 0., 0., 0.
 
-        snapshot_image_list = self.sync_mode.tick(timeout=2.0)
+        snapshot_image_list = self.sync_mode.tick(timeout=8.0)
         snapshot = snapshot_image_list[0]
         ims = snapshot_image_list[1:]
 
