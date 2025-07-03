@@ -262,16 +262,21 @@ class CarlaEnv10(object):
             self.clock = pygame.time.Clock()
 
         print("Attempting to connect to CARLA server...")
-        self.client = carla.Client(cfg_dict['ip'], cfg_dict['port'])
-        self.client.set_timeout(60.0)
-        self.world = self.client.load_world(cfg_dict['map'])  # change map here
+        for attempt in range(5):
+            try:
+                self.client = carla.Client(cfg_dict['ip'], cfg_dict['port'])
+                self.client.set_timeout(60.0)
+                self.world = self.client.load_world(cfg_dict['map'])
+
+            except Exception as e:
+                print(f"Connection attempt {attempt + 1} failed: {e}")
+                time.sleep(5)
 
         self.client.set_timeout(2.0)
         self.map = self.world.get_map()
         self.vehicle_spawn_points = self.map.get_spawn_points()
         # assert self.map.name == "Town05"
-        print("\tSuccessfully connected to CARLA server!!")
-
+        print("Successfully connected to CARLA server!!")
         # remove old vehicles and sensors (in case they survived)
         self.world.tick()
         actor_list = self.world.get_actors()
