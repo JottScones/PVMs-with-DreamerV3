@@ -300,17 +300,18 @@ class CarlaEnv10(object):
 
         cam_list = []
 
-        bp = blueprint_library.find('sensor.camera.rgb')
-        bp.set_attribute('image_size_x', str(1024))
-        bp.set_attribute('image_size_y', str(1024))
-        self.camera_rgb = self.world.spawn_actor(
-            bp,
-            # carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
-            carla.Transform(carla.Location(x=-5.5, z=2.8),
-                            carla.Rotation(pitch=-15)),
-            attach_to=self.vehicle)
-        self.actor_list.append(self.camera_rgb)
-        cam_list.append(self.camera_rgb)
+        if self.save_display_images:
+            bp = blueprint_library.find('sensor.camera.rgb')
+            bp.set_attribute('image_size_x', str(1024))
+            bp.set_attribute('image_size_y', str(1024))
+            self.camera_rgb = self.world.spawn_actor(
+                bp,
+                # carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
+                carla.Transform(carla.Location(x=-5.5, z=2.8),
+                                carla.Rotation(pitch=-15)),
+                attach_to=self.vehicle)
+            self.actor_list.append(self.camera_rgb)
+            cam_list.append(self.camera_rgb)
 
         # we'll use up to five cameras, which we'll stitch together
         bp = blueprint_library.find('sensor.camera.rgb')
@@ -397,6 +398,8 @@ class CarlaEnv10(object):
             os.mkdir(image_dir)
             self.image_dir = image_dir
 
+        self.tm = self.client.get_trafficmanager(
+            self.cfg_dict['traffic_manager_port'])
         self.sync_mode = CarlaSyncMode(self.world, *cam_list, fps=20)
 
         # weather
@@ -438,6 +441,7 @@ class CarlaEnv10(object):
         self.dist_s = 0
         self.return_ = 0
         self.velocities = []
+        self.collide_count = 0
         self.world.tick()
         self.reset()  # creates self.agent
 
@@ -538,6 +542,7 @@ class CarlaEnv10(object):
         self.dist_s = 0
         self.return_ = 0
         self.velocities = []
+        self.collide_count = 0
 
         # get obs:
         obs, _, _, _ = self.step(action=None)
@@ -592,10 +597,13 @@ class CarlaEnv10(object):
         self.world.tick()
         self.vehicle_list = []
 
-        traffic_manager = self.client.get_trafficmanager(
+        self.tm = self.client.get_trafficmanager(
             self.cfg_dict['traffic_manager_port'])  # 8000? which port?
-        traffic_manager.set_global_distance_to_leading_vehicle(2.0)
-        traffic_manager.set_synchronous_mode(True)
+        self.tm.set_global_distance_to_leading_vehicle(2.0)
+        self.tm.set_synchronous_mode(True)
+        self.tm.set_hybrid_physics_mode(True)
+        self.tm.set_hybrid_physics_radius(70.0)
+
         blueprints = self.world.get_blueprint_library().filter('vehicle.*')
         blueprints = [x for x in blueprints if int(
             x.get_attribute('number_of_wheels')) == 4]
@@ -702,7 +710,7 @@ class CarlaEnv10(object):
             if not response.error:
                 self.vehicle_list.append(response.actor_id)
 
-        traffic_manager.global_percentage_speed_difference(30.0)
+        self.tm.global_percentage_speed_difference(30.0)
 
     def reset_pedestrians(self):
         if self.num_pedestrians == 0:
@@ -799,11 +807,13 @@ class CarlaEnv10(object):
             throttle, steer, brake = 0., 0., 0.
 
         snapshot_image_list = self.sync_mode.tick(timeout=2.0)
+        self.tm.tick()
         snapshot = snapshot_image_list[0]
         ims = snapshot_image_list[1:]
 
-        image_rgb = ims[0]
-        ims = ims[1:]
+        if self.save_display_images:
+            image_rgb = ims[0]
+            ims = ims[1:]
 
         info = {}
         info['reason_episode_ended'] = ''
@@ -866,10 +876,6 @@ class CarlaEnv10(object):
             pygame.display.flip()
 
         rgbs = []
-        bgra = np.array(image_rgb.raw_data).reshape(1024, 1024, 4)  # BGRA format
-        bgr = bgra[:, :, :3]  # BGR format (84 x 84 x 3)
-        camera_rgb = np.flip(bgr, axis=2)  # RGB format (84 x 84 x 3)
-
         for im in ims:
             bgra = np.array(im.raw_data).reshape(
                 self.rl_image_size, self.rl_image_size, 4)  # BGRA format
@@ -895,10 +901,16 @@ class CarlaEnv10(object):
             metadata.add_text("brake", str(brake))
             im.save(image_name, "PNG", pnginfo=metadata)
 
+        if self.save_display_images:
+            bgra = np.array(image_rgb.raw_data).reshape(
+                1024, 1024, 4)  # BGRA format
+            bgr = bgra[:, :, :3]  # BGR format (84 x 84 x 3)
+            display_rgb = np.flip(bgr, axis=2)  # RGB format (84 x 84 x 3)
+
             image_name = os.path.join(
                 self.image_dir, "view%08d.png" % self.count)
 
-            im = Image.fromarray(camera_rgb)
+            im = Image.fromarray(display_rgb)
             metadata = PngInfo()
             metadata.add_text("throttle", str(throttle))
             metadata.add_text("steer", str(steer))
