@@ -7,21 +7,20 @@ import elements
 import functools
 import numpy as np
 import carla
-from vigen.wrappers.carla_wrapper import carla_make
+from vigen.wrappers.carla_wrapper import carla_make, carla_make_eval
 
 
 class Carla(embodied.Env):
     def __init__(self, task, repeat=2, size=(128, 128), obs_key="image", act_key="action", seed=None, make=True, **kwargs):
         if make:
             self.env = carla_make(repeat)
+            self.set_seeds(seed)
 
         self.size = size
 
         self._obs_key = obs_key
         self._act_key = act_key
         self._done = True
-
-        self.set_seeds(seed)
 
     def set_seeds(self, seed):
         # Basic Randomness
@@ -30,7 +29,6 @@ class Carla(embodied.Env):
 
         # Carla Randomness
         self.env.tm.set_random_device_seed(seed)
-        self.env.world.set_random_seed(seed)
 
     @property
     def obs_space(self):

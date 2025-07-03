@@ -307,12 +307,14 @@ class CarlaEnv10_eval(object):
         self.client = carla.Client(cfg_dict['ip'], cfg_dict['port'])
         self.client.set_timeout(60.0)
 
+        print("Attempting to connect to CARLA server...")
         if self.scenario is None:
             self.world = self.client.load_world(cfg_dict['map'])
 
         else:
             self.world = self.client.load_world(
                 self.setting['scenario'][self.scenario]['map'])
+        print("\tSuccessfully connected to CARLA server!!")
 
         self.client.set_timeout(2.0)
         self.map = self.world.get_map()
