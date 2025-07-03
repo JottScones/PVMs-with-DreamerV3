@@ -305,7 +305,7 @@ class CarlaEnv10_eval(object):
             self.clock = pygame.time.Clock()
 
         self.client = carla.Client(cfg_dict['ip'], cfg_dict['port'])
-        self.client.set_timeout(500.0)
+        self.client.set_timeout(60.0)
 
         if self.scenario is None:
             self.world = self.client.load_world(cfg_dict['map'])
@@ -313,6 +313,8 @@ class CarlaEnv10_eval(object):
         else:
             self.world = self.client.load_world(
                 self.setting['scenario'][self.scenario]['map'])
+
+        self.client.set_timeout(2.0)
         self.map = self.world.get_map()
         self.vehicle_spawn_points = self.map.get_spawn_points()
 
@@ -338,7 +340,7 @@ class CarlaEnv10_eval(object):
         blueprint_library = self.world.get_blueprint_library()
 
         cam_list = []
-        if cfg_dict['render_display']:
+        if self.save_display_images:
             self.camera_rgb = self.world.spawn_actor(
                 blueprint_library.find('sensor.camera.rgb'),
                 # carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
@@ -433,6 +435,8 @@ class CarlaEnv10_eval(object):
             os.mkdir(image_dir)
             self.image_dir = image_dir
 
+        self.tm = self.client.get_trafficmanager(
+            self.cfg_dict['traffic_manager_port'])
         self.sync_mode = CarlaSyncMode(self.world, *cam_list, fps=20)
 
         # weather
@@ -474,6 +478,7 @@ class CarlaEnv10_eval(object):
         self.dist_s = 0
         self.return_ = 0
         self.velocities = []
+        self.collide_count = 0
         self.world.tick()
         self.reset()  # creates self.agent
 
@@ -566,14 +571,13 @@ class CarlaEnv10_eval(object):
         self.world.tick()
         self.reset_other_vehicles()
         self.world.tick()
-        # self.reset_pedestrians()
-        # self.world.tick()
         self.agent = RoamingAgentModified(
             self.vehicle, follow_traffic_lights=False)
         self.count = 0
         self.dist_s = 0
         self.return_ = 0
         self.velocities = []
+        self.collide_count = 0
 
         # get obs:
         obs, _, _, _ = self.step(action=None)
@@ -633,6 +637,7 @@ class CarlaEnv10_eval(object):
         self.vehicle.set_target_angular_velocity(carla.Vector3D())
 
     def reset_other_vehicles(self):
+        MIN_SPAWN_DISTANCE = 10.0
         if self.num_other_cars == 0:
             return
 
@@ -642,53 +647,98 @@ class CarlaEnv10_eval(object):
         self.world.tick()
         self.vehicle_list = []
 
-        traffic_manager = self.client.get_trafficmanager(
+        self.tm = self.client.get_trafficmanager(
             self.cfg_dict['traffic_manager_port'])  # 8000? which port?
-        traffic_manager.set_global_distance_to_leading_vehicle(2.0)
-        traffic_manager.set_synchronous_mode(True)
+        self.tm.set_global_distance_to_leading_vehicle(2.0)
+        self.tm.set_synchronous_mode(True)
+        self.tm.set_hybrid_physics_mode(True)
+        self.tm.set_hybrid_physics_radius(100.0)
+
         blueprints = self.world.get_blueprint_library().filter('vehicle.*')
         blueprints = [x for x in blueprints if int(
             x.get_attribute('number_of_wheels')) == 4]
 
+        vehicle_location = self.vehicle.get_location()
+        vehicle_waypoint = self.map.get_waypoint(vehicle_location)
+        next_waypoint = random.choice(vehicle_waypoint.next(4.0))
+        other_vehicle_transforms = []
+
         # other_cars
         assert self.num_other_cars >= self.num_other_cars_nearby, 'num_other_cars should >= self.num_other_cars_nearby'
-        other_vehicle_spawn_point_ids = random.sample(range(
-            len(self.vehicle_spawn_points)), self.num_other_cars - self.num_other_cars_nearby)
+        num_distant_needed = self.num_other_cars - self.num_other_cars_nearby
+        distant_spawn_points = random.sample(
+            self.vehicle_spawn_points, len(self.vehicle_spawn_points))
 
-        other_vehicle_transforms = [self.vehicle_spawn_points[i]
-                                    for i in other_vehicle_spawn_point_ids]
+        for spawn_point in distant_spawn_points:
+            if len(other_vehicle_transforms) >= num_distant_needed:
+                break  # We have enough distant cars
+
+            # Check that the point is not too close to the ego vehicle or other distant cars
+            is_too_close = False
+            if spawn_point.location.distance(vehicle_location) < MIN_SPAWN_DISTANCE:
+                is_too_close = True
+            if not is_too_close:
+                for t in other_vehicle_transforms:
+                    if spawn_point.location.distance(t.location) < MIN_SPAWN_DISTANCE:
+                        is_too_close = True
+                        break
+
+            if not is_too_close:
+                other_vehicle_transforms.append(spawn_point)
+
+        for i in range(len(other_vehicle_transforms)):
+            # in Town02, must start higher than 0.22
+            other_vehicle_transforms[i].location.z = 0.22
 
         # other_cars_nearby
-        vehicle_waypoint = self.map.get_waypoint(self.vehicle.get_location())
-        next_waypoint = random.choice(vehicle_waypoint.next(4.0))
-
         road_id = next_waypoint.road_id
         s = next_waypoint.s
 
-        for _ in range(self.num_other_cars_nearby):
-            if vehicle_waypoint.lane_id < 0:
-                lane_id = random.choice([-1, -2, -3, -4])
-            elif vehicle_waypoint.lane_id > 0:
-                lane_id = random.choice([1, 2, 3, 4])
-            vehicle_s = np.random.uniform(s - 40., s + 40)
-            other_vehicle_waypoint = self.map.get_waypoint_xodr(
-                road_id, lane_id, vehicle_s)
-            while other_vehicle_waypoint is None:
-                if vehicle_waypoint.lane_id < 0:
-                    lane_id = random.choice([-1, -2, -3, -4])
-                elif vehicle_waypoint.lane_id > 0:
-                    lane_id = random.choice([1, 2, 3, 4])
+        nearby_tries = 0
+        max_nearby_tries = self.num_other_cars_nearby * 10  # Failsafe for this stage
+        is_too_close = False
+        while (len(other_vehicle_transforms) < self.num_other_cars) and (nearby_tries < max_nearby_tries):
+            nearby_tries += 1
+
+            # Generate a candidate waypoint for a nearby car
+            lane_id = random.choice(
+                [-1, -2, -3, -4]) if vehicle_waypoint.lane_id < 0 else random.choice([1, 2, 3, 4])
+            if is_too_close:
                 vehicle_s = np.random.uniform(s - 100., s + 100)
-                other_vehicle_waypoint = self.map.get_waypoint_xodr(
-                    road_id, lane_id, vehicle_s)
-            if other_vehicle_waypoint is not None:
-                other_vehicle_transforms.append(
-                    other_vehicle_waypoint.transform)
+            else:
+                vehicle_s = np.random.uniform(s - 40., s + 40)
+
+            candidate_waypoint = self.map.get_waypoint_xodr(
+                road_id, lane_id, vehicle_s)
+
+            if candidate_waypoint is None:
+                continue  # Failed to generate a valid waypoint, try again
+
+            candidate_transform = candidate_waypoint.transform
+
+            # Check the nearby candidate against the ego vehicle AND all previously placed distant cars
+            is_too_close = False
+            if candidate_transform.location.distance(vehicle_location) < MIN_SPAWN_DISTANCE:
+                is_too_close = True
+            if not is_too_close:
+                for t in other_vehicle_transforms:
+                    if candidate_transform.location.distance(t.location) < MIN_SPAWN_DISTANCE:
+                        is_too_close = True
+                        break
+
+            if not is_too_close:
+                other_vehicle_transforms.append(candidate_transform)
+
+        if len(other_vehicle_transforms) < self.num_other_cars:
+            print(
+                f"WARN: Could only place {len(other_vehicle_transforms)} out of {self.num_other_cars} requested NPCs.")
 
         # Spawn vehicles
         batch = []
+        print("--- GENERATING NPC SPAWN BATCH ---")  # Add this for context
         for n, transform in enumerate(other_vehicle_transforms):
             transform.location.z = 0.22
+
             blueprint = random.choice(blueprints)
             if blueprint.has_attribute('color'):
                 color = random.choice(
@@ -701,68 +751,13 @@ class CarlaEnv10_eval(object):
             blueprint.set_attribute('role_name', 'autopilot')
             batch.append(carla.command.SpawnActor(blueprint, transform).then(
                 carla.command.SetAutopilot(carla.command.FutureActor, True, self.cfg_dict['traffic_manager_port'])))
-        for response in self.client.apply_batch_sync(batch, False):
-            self.vehicle_list.append(response.actor_id)
 
-        for response in self.client.apply_batch_sync(batch):
-            if response.error:
-                pass
-                # print(response.error)
-            else:
+        responses = self.client.apply_batch_sync(batch, True)
+        for response in responses:
+            if not response.error:
                 self.vehicle_list.append(response.actor_id)
 
-        traffic_manager.global_percentage_speed_difference(30.0)
-
-    def reset_pedestrians(self):
-        if self.num_pedestrians == 0:
-            return
-
-        # clear out old pedestrians
-        self.client.apply_batch([carla.command.DestroyActor(x)
-                                for x in self.pedestrian_list])
-        self.world.tick()
-        self.pedestrian_list = []
-
-        traffic_manager = self.client.get_trafficmanager()  # 8000? which port?
-        traffic_manager.set_global_distance_to_leading_vehicle(2.0)
-        traffic_manager.set_synchronous_mode(True)
-        blueprints = self.world.get_blueprint_library().filter('walker.pedestrian.*')
-
-        spawn_points = []
-        for i in range(self.num_pedestrians):
-            spawn_point = carla.Transform()
-            spawn_point.location = self.world.get_random_location_from_navigation()
-            print(spawn_point.location)
-            spawn_point.location.z = 0.1
-            if (spawn_point.location != None):
-                spawn_points.append(spawn_point)
-
-        # Spawn pedestrians
-        batch = []
-        for n, transform in enumerate(spawn_points):
-            blueprint = random.choice(blueprints)
-            batch.append(carla.command.SpawnActor(blueprint, transform))
-
-        for response in self.client.apply_batch_sync(batch, False):
-            self.pedestrian_list.append(response.actor_id)
-
-        for response in self.client.apply_batch_sync(batch):
-            if response.error:
-                # pass
-                print(response.error)
-            else:
-                self.pedestrian_list.append(response.actor_id)
-
-    def compute_steer_action(self):
-        control = self.agent.run_step()  # PID decides control.steer
-        steer = control.steer
-        throttle = control.throttle
-        brake = control.brake
-        throttle_brake = -brake
-        if throttle > 0.:
-            throttle_brake = throttle
-        steer_action = np.array([steer, throttle_brake], dtype=np.float32)
-        return steer_action
+        self.tm.global_percentage_speed_difference(30.0)
 
     def step(self, action):
         rewards = []
@@ -808,7 +803,8 @@ class CarlaEnv10_eval(object):
         snapshot_image_list = self.sync_mode.tick(timeout=8.0)
         snapshot = snapshot_image_list[0]
         ims = snapshot_image_list[1:]
-        if self.render_display:
+
+        if self.save_display_images:
             image_rgb = ims[0]
             ims = ims[1:]
 
@@ -899,14 +895,22 @@ class CarlaEnv10_eval(object):
             metadata.add_text("brake", str(brake))
             im.save(image_name, "PNG", pnginfo=metadata)
 
-            # # Example usage:
-            # from PIL.PngImagePlugin import PngImageFile
-            # im = PngImageFile("rl00001234.png")
-            # # Actions are stored in the image's metadata:
-            # print("Actions: %s" % im.text)
-            # throttle = float(im.text['throttle'])  # range [0, 1]
-            # steer = float(im.text['steer'])  # range [-1, 1]
-            # brake = float(im.text['brake'])  # range [0, 1]
+        if self.save_display_images:
+            bgra = np.array(image_rgb.raw_data).reshape(
+                1024, 1024, 4)  # BGRA format
+            bgr = bgra[:, :, :3]  # BGR format (84 x 84 x 3)
+            display_rgb = np.flip(bgr, axis=2)  # RGB format (84 x 84 x 3)
+
+            image_name = os.path.join(
+                self.image_dir, "view%08d.png" % self.count)
+
+            im = Image.fromarray(display_rgb)
+            metadata = PngInfo()
+            metadata.add_text("throttle", str(throttle))
+            metadata.add_text("steer", str(steer))
+            metadata.add_text("brake", str(brake))
+            im.save(image_name, "PNG", pnginfo=metadata)
+
         self.count += 1
 
         next_obs = rgb  # (84 x 252 x 3) or (84 x 420 x 3)

@@ -108,8 +108,8 @@ class ExtendedTimeStepWrapper(dm_env.Environment):
         return getattr(self._env, name)
 
 
-def carla_make(action_repeat):
-    env = make_env_10(action_repeat)
+def carla_make(action_repeat, **kwargs):
+    env = make_env_10(action_repeat, **kwargs)
     env = ExtendedTimeStepWrapper(env)
     return env
 

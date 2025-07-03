@@ -6,6 +6,7 @@ from vigen.wrappers.carlaenv.carla_env_10_eval import CarlaEnv10_eval
 from hydra import compose, initialize
 import hydra
 
+
 def make_env():
     hydra.core.global_hydra.GlobalHydra.instance().clear()
     with initialize(config_path="../../cfgs"):
@@ -14,6 +15,7 @@ def make_env():
         cfg_dict = omegaconf_to_dict(cfg)
     env = CarlaEnv(cfg_dict)
     return env
+
 
 def make_env_8():
     hydra.core.global_hydra.GlobalHydra.instance().clear()
@@ -24,32 +26,37 @@ def make_env_8():
     env = CarlaEnv8(cfg_dict)
     return env
 
-def make_env_10(action_repeat):
+
+def make_env_10(action_repeat, **kwargs):
     hydra.core.global_hydra.GlobalHydra.instance().clear()
     with initialize(config_path="../../cfgs"):
         # cfg = compose(config_name="config", overrides=[f"task={task}"])
         cfg = compose(config_name="carlaenv10_config")
         cfg_dict = omegaconf_to_dict(cfg)
     cfg_dict['frame_skip'] = action_repeat
+    cfg_dict.update(kwargs)
     print("Final Config")
     print(cfg_dict)
     env = CarlaEnv10(cfg_dict)
     return env
 
 
-def make_env_10_eval(action_repeat):
+def make_env_10_eval(action_repeat, **kwargs):
     hydra.core.global_hydra.GlobalHydra.instance().clear()
     with initialize(config_path="../../cfgs"):
         # cfg = compose(config_name="config", overrides=[f"task={task}"])
         cfg = compose(config_name="carlaenv10_eval_config")
         cfg_dict = omegaconf_to_dict(cfg)
     cfg_dict['frame_skip'] = action_repeat
+    cfg_dict.update(kwargs)
     if cfg_dict['scenario'] == 'tunnel':
         cfg_dict['num_other_cars'] = 5
         cfg_dict['num_other_cars_nearby'] = 2
     elif cfg_dict['scenario'] == 'narrow' or cfg_dict['scenario'] == 'roundabout':
         cfg_dict['num_other_cars'] = 5
         cfg_dict['num_other_cars_nearby'] = 0
+    print("Final Config")
+    print(cfg_dict)
     env = CarlaEnv10_eval(cfg_dict)
     return env
 

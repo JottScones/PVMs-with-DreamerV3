@@ -230,7 +230,6 @@ class Weather(object):
         self.weather.sun_azimuth_angle = self._sun.azimuth
         self.weather.sun_altitude_angle = self._sun.altitude
         self.world.set_weather(self.weather)
-        # self.world.set_weather(self.weather_params)
 
     def __str__(self):
         return '%s %s' % (self._sun, self._storm)
@@ -534,8 +533,6 @@ class CarlaEnv10(object):
         self.world.tick()
         self.reset_other_vehicles()
         self.world.tick()
-        # self.reset_pedestrians()
-        # self.world.tick()
         self.agent = RoamingAgentModified(
             self.vehicle, follow_traffic_lights=False)
         self.count = 0
@@ -602,7 +599,7 @@ class CarlaEnv10(object):
         self.tm.set_global_distance_to_leading_vehicle(2.0)
         self.tm.set_synchronous_mode(True)
         self.tm.set_hybrid_physics_mode(True)
-        self.tm.set_hybrid_physics_radius(70.0)
+        self.tm.set_hybrid_physics_radius(100.0)
 
         blueprints = self.world.get_blueprint_library().filter('vehicle.*')
         blueprints = [x for x in blueprints if int(
@@ -689,9 +686,6 @@ class CarlaEnv10(object):
         for n, transform in enumerate(other_vehicle_transforms):
             transform.location.z = 0.22
 
-            print(
-                f"LOG: Preparing to spawn NPC {n} at X={transform.location.x:.2f}, Y={transform.location.y:.2f}, Z={transform.location.z:.2f}")
-
             blueprint = random.choice(blueprints)
             if blueprint.has_attribute('color'):
                 color = random.choice(
@@ -711,57 +705,6 @@ class CarlaEnv10(object):
                 self.vehicle_list.append(response.actor_id)
 
         self.tm.global_percentage_speed_difference(30.0)
-
-    def reset_pedestrians(self):
-        if self.num_pedestrians == 0:
-            return
-
-        # clear out old pedestrians
-        self.client.apply_batch([carla.command.DestroyActor(x)
-                                for x in self.pedestrian_list])
-        self.world.tick()
-        self.pedestrian_list = []
-
-        traffic_manager = self.client.get_trafficmanager()  # 8000? which port?
-        traffic_manager.set_global_distance_to_leading_vehicle(2.0)
-        traffic_manager.set_synchronous_mode(True)
-        blueprints = self.world.get_blueprint_library().filter('walker.pedestrian.*')
-
-        spawn_points = []
-        for i in range(self.num_pedestrians):
-            spawn_point = carla.Transform()
-            spawn_point.location = self.world.get_random_location_from_navigation()
-            # print(spawn_point.location)
-            spawn_point.location.z = 0.1
-            if (spawn_point.location != None):
-                spawn_points.append(spawn_point)
-
-        # Spawn pedestrians
-        batch = []
-        for n, transform in enumerate(spawn_points):
-            blueprint = random.choice(blueprints)
-            batch.append(carla.command.SpawnActor(blueprint, transform))
-
-        for response in self.client.apply_batch_sync(batch, False):
-            self.pedestrian_list.append(response.actor_id)
-
-        for response in self.client.apply_batch_sync(batch):
-            if response.error:
-                # pass
-                print(response.error)
-            else:
-                self.pedestrian_list.append(response.actor_id)
-
-    def compute_steer_action(self):
-        control = self.agent.run_step()  # PID decides control.steer
-        steer = control.steer
-        throttle = control.throttle
-        brake = control.brake
-        throttle_brake = -brake
-        if throttle > 0.:
-            throttle_brake = throttle
-        steer_action = np.array([steer, throttle_brake], dtype=np.float32)
-        return steer_action
 
     def step(self, action):
         rewards = []
