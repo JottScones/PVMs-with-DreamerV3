@@ -299,15 +299,18 @@ class CarlaEnv10(object):
         blueprint_library = self.world.get_blueprint_library()
 
         cam_list = []
-        if cfg_dict['render_display']:
-            self.camera_rgb = self.world.spawn_actor(
-                blueprint_library.find('sensor.camera.rgb'),
-                # carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
-                carla.Transform(carla.Location(x=-5.5, z=2.8),
-                                carla.Rotation(pitch=-15)),
-                attach_to=self.vehicle)
-            self.actor_list.append(self.camera_rgb)
-            cam_list.append(self.camera_rgb)
+
+        bp = blueprint_library.find('sensor.camera.rgb')
+        bp.set_attribute('image_size_x', str(1024))
+        bp.set_attribute('image_size_y', str(1024))
+        self.camera_rgb = self.world.spawn_actor(
+            bp,
+            # carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
+            carla.Transform(carla.Location(x=-5.5, z=2.8),
+                            carla.Rotation(pitch=-15)),
+            attach_to=self.vehicle)
+        self.actor_list.append(self.camera_rgb)
+        cam_list.append(self.camera_rgb)
 
         # we'll use up to five cameras, which we'll stitch together
         bp = blueprint_library.find('sensor.camera.rgb')
@@ -578,7 +581,7 @@ class CarlaEnv10(object):
         self.vehicle.set_target_angular_velocity(carla.Vector3D())
 
     def reset_other_vehicles(self):
-        MIN_SPAWN_DISTANCE = 6.0
+        MIN_SPAWN_DISTANCE = 10.0
 
         if self.num_other_cars == 0:
             return
@@ -798,9 +801,9 @@ class CarlaEnv10(object):
         snapshot_image_list = self.sync_mode.tick(timeout=2.0)
         snapshot = snapshot_image_list[0]
         ims = snapshot_image_list[1:]
-        if self.render_display:
-            image_rgb = ims[0]
-            ims = ims[1:]
+
+        image_rgb = ims[0]
+        ims = ims[1:]
 
         info = {}
         info['reason_episode_ended'] = ''
@@ -863,6 +866,9 @@ class CarlaEnv10(object):
             pygame.display.flip()
 
         rgbs = []
+        bgra = np.array(image_rgb.raw_data).reshape(1024, 1024, 4)  # BGRA format
+        bgr = bgra[:, :, :3]  # BGR format (84 x 84 x 3)
+        camera_rgb = np.flip(bgr, axis=2)  # RGB format (84 x 84 x 3)
 
         for im in ims:
             bgra = np.array(im.raw_data).reshape(
@@ -883,6 +889,16 @@ class CarlaEnv10(object):
                 self.image_dir, "rl%08d.png" % self.count)
 
             im = Image.fromarray(rgb)
+            metadata = PngInfo()
+            metadata.add_text("throttle", str(throttle))
+            metadata.add_text("steer", str(steer))
+            metadata.add_text("brake", str(brake))
+            im.save(image_name, "PNG", pnginfo=metadata)
+
+            image_name = os.path.join(
+                self.image_dir, "view%08d.png" % self.count)
+
+            im = Image.fromarray(camera_rgb)
             metadata = PngInfo()
             metadata.add_text("throttle", str(throttle))
             metadata.add_text("steer", str(steer))
