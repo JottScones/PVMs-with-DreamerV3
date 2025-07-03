@@ -682,7 +682,6 @@ class CarlaEnv10(object):
 
         # Spawn vehicles
         batch = []
-        print("--- GENERATING NPC SPAWN BATCH ---")  # Add this for context
         for n, transform in enumerate(other_vehicle_transforms):
             transform.location.z = 0.22
 
