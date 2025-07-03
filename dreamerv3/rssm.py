@@ -360,7 +360,6 @@ class Encoder(nj.Module):
 
 
 class PEEncoder(Encoder):
-<<<<<<< HEAD
     """
     Use facebook perception encoder to encode image observation producing a single 1024 vector.
     Compared to default vector of length 4x4x256=4096.
@@ -376,25 +375,6 @@ class PEEncoder(Encoder):
     symlog: bool = True
     outer: bool = False
     strided: bool = False
-=======
-  """
-  Use facebook perception encoder to encode image observation producing a single 1024 vector.
-  Compared to default vector of length 4x4x256=4096.
-  """
-  units: int = 1024
-  norm: str = 'rms'
-  act: str = 'gelu'
-  depth: int = 64
-  mults: tuple = (2, 3, 4, 4)
-  layers: int = 3
-  kernel: int = 5
-  symlog: bool = True
-  outer: bool = False
-  strided: bool = False
-
-  def __init__(self, obs_space, **kw):
-    super().__init__(obs_space, **kw)
->>>>>>> d00c86a (changes to support PE)
 
     def __init__(self, obs_space, freeze=False, **kw):
         super().__init__(obs_space, **kw)
@@ -411,7 +391,6 @@ class PEEncoder(Encoder):
             images (np.ndarray): Array of shape (B, H, W, C).
             target_size (tuple): New size as (width, height).
 
-<<<<<<< HEAD
         Returns:
             np.ndarray: Resized images with shape (B, target_height, target_width, C).
         """
@@ -555,10 +534,6 @@ class DINOv2Encoder(Encoder):
         x = x.reshape((x.shape[0], -1))
 
         return x
-=======
-    x = x.reshape((x.shape[0], -1))
-    return x
->>>>>>> d00c86a (changes to support PE)
 
 
 class Decoder(nj.Module):
