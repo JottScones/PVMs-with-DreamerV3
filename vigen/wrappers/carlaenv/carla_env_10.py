@@ -251,6 +251,7 @@ class CarlaEnv10(object):
         self.num_other_cars = cfg_dict['num_other_cars']
         self.num_other_cars_nearby = cfg_dict['num_other_cars_nearby']
         self.cameras = cfg_dict['cameras']
+        self.throttles = []
 
         self.actor_list = []
 
@@ -542,6 +543,7 @@ class CarlaEnv10(object):
         self.return_ = 0
         self.velocities = []
         self.collide_count = 0
+        self.throttles = []
 
         # get obs:
         obs, _, _, _ = self.step(action=None)
@@ -715,6 +717,7 @@ class CarlaEnv10(object):
             if done:
                 print("Episode done: {} | steps: {}".format(
                     info['reason_episode_ended'], self.count))
+                print(f"Average throttle: {np.mean(self.throttles)}")
                 break
         return next_obs, np.mean(rewards), done, info  # just last info?
 
@@ -728,7 +731,7 @@ class CarlaEnv10(object):
         if action is not None:
             steer = float(action[0])
             throttle_brake = float(action[1])
-            print(f'steer: {steer} throttle: {throttle_brake}')
+            self.throttles.append(throttle_brake)
 
             if throttle_brake >= 0.0:
                 throttle = throttle_brake
@@ -783,9 +786,6 @@ class CarlaEnv10(object):
         throttle_rew = throttle_brake if action is not None else 0.0
         collision_cost = 0.0001 * collision_intensities_during_last_time_step
         reward = vel_s * dt + throttle_rew - collision_cost - abs(steer)
-        # reward = vel_s * dt / (1. + dist_from_center) - 1.0 * colliding - 0.1 * brake - 0.1 * abs(steer)
-
-        print(f"reward: {reward} | throttle: {throttle_rew}")
 
         info['crash_intensity'] = collision_intensities_during_last_time_step
         info['steer'] = steer
