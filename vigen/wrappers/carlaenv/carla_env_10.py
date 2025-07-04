@@ -261,16 +261,18 @@ class CarlaEnv10(object):
             self.font = get_font()
             self.clock = pygame.time.Clock()
 
-        print("Attempting to connect to CARLA server...")
-        for attempt in range(5):
+        for attempt in range(10):
+            print(f"Attempting to connect to CARLA server...")
             try:
                 self.client = carla.Client(cfg_dict['ip'], cfg_dict['port'])
                 self.client.set_timeout(60.0)
                 self.world = self.client.load_world(cfg_dict['map'])
 
+                print('breaking')
+                break
+
             except Exception as e:
                 print(f"Connection attempt {attempt + 1} failed: {e}")
-                time.sleep(5)
 
         self.client.set_timeout(2.0)
         self.map = self.world.get_map()
@@ -726,6 +728,8 @@ class CarlaEnv10(object):
         if action is not None:
             steer = float(action[0])
             throttle_brake = float(action[1])
+            print(f'steer: {steer} throttle: {throttle_brake}')
+
             if throttle_brake >= 0.0:
                 throttle = throttle_brake
                 brake = 0.0
@@ -776,9 +780,12 @@ class CarlaEnv10(object):
             # speed, self.collide_count))
             done = True
 
+        throttle_rew = throttle_brake if action is not None else 0.0
         collision_cost = 0.0001 * collision_intensities_during_last_time_step
-        reward = vel_s * dt - collision_cost - abs(steer)
+        reward = vel_s * dt + throttle_rew - collision_cost - abs(steer)
         # reward = vel_s * dt / (1. + dist_from_center) - 1.0 * colliding - 0.1 * brake - 0.1 * abs(steer)
+
+        print(f"reward: {reward} | throttle: {throttle_rew}")
 
         info['crash_intensity'] = collision_intensities_during_last_time_step
         info['steer'] = steer
