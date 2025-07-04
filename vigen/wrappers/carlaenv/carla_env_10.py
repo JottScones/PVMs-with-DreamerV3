@@ -717,7 +717,8 @@ class CarlaEnv10(object):
             if done:
                 print("Episode done: {} | steps: {}".format(
                     info['reason_episode_ended'], self.count))
-                print(f"Average throttle: {np.mean(self.throttles)}")
+                if self.throttles:
+                    print(f"Average throttle: {np.mean(self.throttles)}")
                 break
         return next_obs, np.mean(rewards), done, info  # just last info?
 
