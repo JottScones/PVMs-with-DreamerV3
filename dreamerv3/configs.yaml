@@ -396,6 +396,14 @@ atari100kDINO:
     enc:
       typ: dino
 
+atari100kClipFreeze:
+  task: atari100k_pong
+  run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
+  agent:
+    enc:
+      typ: clip
+      freeze: Tru
+
 atari100kClip:
   task: atari100k_pong
   run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
