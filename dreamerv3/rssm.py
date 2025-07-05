@@ -10,12 +10,9 @@ import jax.numpy as jnp
 import ninjax as nj
 import numpy as np
 
-import torch
-import perception_models.core.vision_encoder.pe as pe
 from custom_models.dino import CheckpointableFlaxDinov2Model
 from transformers import AutoImageProcessor, FlaxDinov2Model
 
-from torch.nn import functional as F
 from PIL import Image
 
 f32 = jnp.float32
@@ -357,87 +354,6 @@ class Encoder(nj.Module):
         tokens = x.reshape((*bshape, *x.shape[1:]))
         entries = {}
         return carry, entries, tokens
-
-
-class PEEncoder(Encoder):
-    """
-    Use facebook perception encoder to encode image observation producing a single 1024 vector.
-    Compared to default vector of length 4x4x256=4096.
-    """
-    size: int = 224
-    units: int = 1024
-    norm: str = 'rms'
-    act: str = 'gelu'
-    depth: int = 64
-    mults: tuple = (2, 3, 4, 4)
-    layers: int = 3
-    kernel: int = 5
-    symlog: bool = True
-    outer: bool = False
-    strided: bool = False
-
-    def __init__(self, obs_space, freeze=False, **kw):
-        super().__init__(obs_space, **kw)
-
-        model = pe.VisionTransformer.from_config(
-            "PE-Core-B16-224", pretrained=True)  # Downloads from HF
-        self.model = model.cuda()
-
-    def resize_batch_with_pillow(self, images):
-        """
-        Resize a batch of images using Pillow's bilinear interpolation.
-
-        Parameters:
-            images (np.ndarray): Array of shape (B, H, W, C).
-            target_size (tuple): New size as (width, height).
-
-        Returns:
-            np.ndarray: Resized images with shape (B, target_height, target_width, C).
-        """
-        resized = []
-        for img in images:
-            # Convert image to uint8 if needed
-            pil_img = Image.fromarray(np.uint8(img))
-            pil_img = pil_img.resize((self.size, self.size), Image.BILINEAR)
-            resized.append(np.array(pil_img))
-        return np.stack(resized)
-
-    def _pe_call(self, x):
-        with torch.no_grad(), torch.autocast("cuda"):
-            x_np = np.asarray(x)
-            x_np_resized = self.resize_batch_with_pillow(x_np)
-            x_pt = torch.from_numpy(x_np_resized)
-            x_pt = x_pt.half().cuda()
-            x_pt = x_pt.permute(0, 3, 1, 2)
-
-            output_pt = self.model(x_pt)
-            # Ensure output is on CPU before converting back to NumPy for JAX
-            output_np = output_pt.cpu().numpy()
-            return output_np.astype(np_bfloat16_dtype)
-
-    def encode_image_obs(self, obs, bdims, training=False):
-        imgs = [obs[k] for k in sorted(self.imgkeys)]
-        assert all(x.dtype == jnp.uint8 for x in imgs)
-
-        # Concatenate images along the last dimension (channel dimension)
-        # and flatten the batch and time dimensions
-        x = nn.cast(jnp.concatenate(imgs, -1), force=True) / 255 - 0.5
-        x_reshaped = x.reshape((-1, *x.shape[bdims:]))
-
-        result_shape_abstract = jax.ShapeDtypeStruct(
-            (x_reshaped.shape[0], 1024), x_reshaped.dtype)
-        x_from_pytorch = jax.pure_callback(
-            self._pe_call,  # The Python function to call
-            result_shape_abstract,    # An abstract JAX array representing the output shape and dtype
-            x_reshaped,               # Arguments to the callback function
-            vectorized=True          # Set to True if your callback is vectorized for vmap
-        )
-
-        x = nn.act(self.act)(
-            self.sub(f'pe_norm', nn.Norm, self.norm)(x_from_pytorch))
-
-        x = x.reshape((x.shape[0], -1))
-        return x
 
 
 print("Loading Dinov2...")
