@@ -221,6 +221,17 @@ defaults:
           winit: trunc_normal_in,
           symlog: True,
         }
+      clip:
+        {
+          depth: 64,
+          mults: [2, 3, 4, 4],
+          layers: 3,
+          units: 1024,
+          act: silu,
+          norm: rms,
+          winit: trunc_normal_in,
+          symlog: True,
+        }
     dec:
       typ: simple
       simple:
@@ -384,6 +395,13 @@ atari100kDINO:
   agent:
     enc:
       typ: dino
+
+atari100kClip:
+  task: atari100k_pong
+  run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
+  agent:
+    enc:
+      typ: clip
 
 crafter:
   task: crafter_reward
