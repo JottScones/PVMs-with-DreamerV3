@@ -40,7 +40,6 @@ class Agent(embodied.jax.Agent):
     dec_space = {k: v for k, v in obs_space.items() if k not in exclude}
     self.enc = {
         'simple': rssm.Encoder,
-        'perception_encoder': rssm.PEEncoder,
         'dino': rssm.DINOv2Encoder
     }[config.enc.typ](enc_space, freeze=config.enc.freeze, **config.enc[config.enc.typ], name='enc')
     self.dyn = {
