@@ -501,6 +501,19 @@ maniskillDINOFreeze:
   agent.enc.freeze: True
   agent.enc.typ: dino
 
+maniskillCLIP:
+  task: maniskill_PickSingleYCBWrist-v1
+  run: { steps: 1.01e6, train_ratio: 32 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: clip
+
+maniskillCLIPFreeze:
+  task: maniskill_PickSingleYCBWrist-v1
+  run: { steps: 1.01e6, train_ratio: 32 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.freeze: True
+  agent.enc.typ: clip
+
 dmc_proprio:
   <<: *size1m
   task: dmc_walker_walk
