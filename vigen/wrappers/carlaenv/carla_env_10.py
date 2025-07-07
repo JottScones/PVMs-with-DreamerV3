@@ -275,7 +275,7 @@ class CarlaEnv10(object):
             except Exception as e:
                 print(f"Connection attempt {attempt + 1} failed: {e}")
 
-        self.client.set_timeout(4.0)
+        self.client.set_timeout(8.0)
         self.map = self.world.get_map()
         self.vehicle_spawn_points = self.map.get_spawn_points()
         # assert self.map.name == "Town05"
