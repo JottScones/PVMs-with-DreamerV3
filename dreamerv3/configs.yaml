@@ -391,19 +391,19 @@ crafter:
 
 carla:
   task: carla_town04 # town is not actually changable for now
-  run: { steps: 5.05e5, envs: 1, train_ratio: 256 }
+  run: { steps: 4.04e5, envs: 1, train_ratio: 256 }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
 
 carlaDINOFreeze:
   task: carla_town04 # town is not actually changable for now
-  run: { steps: 5.05e5, envs: 1, train_ratio: 256 }
+  run: { steps: 4.04e5, envs: 1, train_ratio: 256 }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.freeze: True
   agent.enc.typ: dino
 
 carlaDINO:
   task: carla_town04 # town is not actually changable for now
-  run: { steps: 5.05e5, envs: 1, train_ratio: 256 }
+  run: { steps: 4.04e5, envs: 1, train_ratio: 256 }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.typ: dino
 
