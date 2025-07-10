@@ -228,6 +228,7 @@ def make_env(config, index, **overrides):
         'maniskill': 'embodied.envs.maniskill:ManiSkill',
         'maniskillview': 'embodied.envs.maniskill:ManiSkillView',
         'carla': 'embodied.envs.carla:Carla',
+        'carlaeval': 'embodied.envs.carla:CarlaEval',
         'dmlab': 'embodied.envs.dmlab:DMLab',
         'minecraft': 'embodied.envs.minecraft:Minecraft',
         'loconav': 'embodied.envs.loconav:LocoNav',

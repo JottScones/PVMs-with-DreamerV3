@@ -75,3 +75,16 @@ class Carla(embodied.Env):
             obs, reward,
             is_last=bool(self._done),
             is_terminal=is_terminal)
+
+
+class CarlaEval(Carla):
+    def __init__(self, task, repeat=2, size=(128, 128), obs_key="image", act_key="action", seed=None, make=True, **kwargs):
+        if make:
+            self.env = carla_make_eval(repeat, rl_image_size=size[0], **kwargs)
+            self.set_seeds(seed)
+
+        self.size = size
+
+        self._obs_key = obs_key
+        self._act_key = act_key
+        self._done = True

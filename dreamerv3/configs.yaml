@@ -62,6 +62,13 @@ defaults:
     dmc: { size: [64, 64], repeat: 1, proprio: True, image: True, camera: -1 }
     loconav: { size: [64, 64], repeat: 1, camera: -1 }
     carla: { size: [128, 128], repeat: 2, use_seed: True }
+    carlaeval:
+      {
+        size: [128, 128],
+        repeat: 2,
+        use_seed: True,
+        weather: custom_soft_high_light,
+      }
     maniskill:
       {
         size: [128, 128],
@@ -355,6 +362,18 @@ maniskillview:
 carla:
   task: carla_town04 # town is not actually changable for now
   run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
+  agent.enc.simple.mults: [2, 3, 4, 4, 4]
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+
+carla_eval:
+  task: carlaeval_town04 # town is not actually changable for now
+  script: eval_only
+  run:
+    {
+      envs: 1,
+      steps: 11000,
+      from_checkpoint: "logdir/baseline_pick_ycb_train_ID/ckpt/20250614T044516F348219",
+    }
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
 
