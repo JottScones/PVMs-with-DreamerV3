@@ -415,13 +415,13 @@ carlaDINOFreeze:
   agent.enc.typ: dino
 
 carlaDINOFreezeEval:
-  task: carla_town04 # town is not actually changable for now
+  task: carlaeval_town04 # town is not actually changable for now
   script: eval_only
   run:
     {
       envs: 1,
       steps: 11000,
-      from_checkpoint: "logdir/baseline_pick_ycb_train_ID/ckpt/20250614T044516F348219",
+      from_checkpoint: "logdir/DINOFreeze_carla_train_ID/ckpt/20250709T111708F918635/",
     }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.freeze: True
@@ -434,13 +434,13 @@ carlaDINO:
   agent.enc.typ: dino
 
 carlaDINOEval:
-  task: carla_town04 # town is not actually changable for now
+  task: carlaeval_town04 # town is not actually changable for now
   script: eval_only
   run:
     {
       envs: 1,
       steps: 11000,
-      from_checkpoint: "logdir/baseline_pick_ycb_train_ID/ckpt/20250614T044516F348219",
+      from_checkpoint: "logdir/DINOFT_carla_train_ID/ckpt/20250707T073336F860440/",
     }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.typ: dino
