@@ -456,6 +456,28 @@ carlaDINOFreezeEval:
   agent.enc.freeze: True
   agent.enc.typ: dino
 
+carlaDINOPartialFreeze:
+  task: carla_town04 # town is not actually changable for now
+  run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 8 # FT layers 8 and above
+  agent.enc.typ: dino
+
+carlaDINOPartialFreezeEval:
+  task: carlaeval_town04 # town is not actually changable for now
+  script: eval_only
+  run:
+    {
+      envs: 1,
+      steps: 11000,
+      from_checkpoint: "logdir/DINOFT_carla_train_ID/ckpt/20250707T073336F860440/",
+    }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 8 # FT layers 8 and above
+  agent.enc.typ: dino
+
 carlaDINO:
   task: carla_town04 # town is not actually changable for now
   run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
