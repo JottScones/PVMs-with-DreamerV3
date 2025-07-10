@@ -114,7 +114,7 @@ def carla_make(action_repeat, **kwargs):
     return env
 
 
-def carla_make_eval(action_repeat):
-    env = make_env_10_eval(action_repeat)
+def carla_make_eval(action_repeat, **kwargs):
+    env = make_env_10_eval(action_repeat, **kwargs)
     env = ExtendedTimeStepWrapper(env)
     return env
