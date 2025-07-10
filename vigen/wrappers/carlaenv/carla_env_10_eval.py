@@ -340,8 +340,11 @@ class CarlaEnv10_eval(object):
 
         cam_list = []
         if self.save_display_images:
+            bp = blueprint_library.find('sensor.camera.rgb')
+            bp.set_attribute('image_size_x', str(1024))
+            bp.set_attribute('image_size_y', str(1024))
             self.camera_rgb = self.world.spawn_actor(
-                blueprint_library.find('sensor.camera.rgb'),
+                bp,
                 # carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
                 carla.Transform(carla.Location(x=-5.5, z=2.8),
                                 carla.Rotation(pitch=-15)),
@@ -893,6 +896,7 @@ class CarlaEnv10_eval(object):
             im.save(image_name, "PNG", pnginfo=metadata)
 
         if self.save_display_images:
+            print("saving display image")
             bgra = np.array(image_rgb.raw_data).reshape(
                 1024, 1024, 4)  # BGRA format
             bgr = bgra[:, :, :3]  # BGR format (84 x 84 x 3)
