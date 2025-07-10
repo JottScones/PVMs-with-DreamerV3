@@ -430,7 +430,8 @@ class CarlaEnv10_eval(object):
         if self.save_display_images or self.save_rl_images:
             import datetime
             now = datetime.datetime.now()
-            image_dir = "images-" + now.strftime("%Y-%m-%d-%H-%M-%S")
+            image_dir = f"images-{self.cfg_dict['weather']}-" + \
+                now.strftime("%Y-%m-%d-%H-%M-%S")
             os.mkdir(image_dir)
             self.image_dir = image_dir
 

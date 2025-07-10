@@ -68,6 +68,7 @@ defaults:
         repeat: 2,
         use_seed: True,
         weather: custom_hard_noisy_low_light,
+        save_display_images: True,
       }
     maniskill:
       {
