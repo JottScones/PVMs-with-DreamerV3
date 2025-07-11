@@ -340,8 +340,11 @@ class CarlaEnv10_eval(object):
 
         cam_list = []
         if self.save_display_images:
+            bp = blueprint_library.find('sensor.camera.rgb')
+            bp.set_attribute('image_size_x', str(1024))
+            bp.set_attribute('image_size_y', str(1024))
             self.camera_rgb = self.world.spawn_actor(
-                blueprint_library.find('sensor.camera.rgb'),
+                bp,
                 # carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
                 carla.Transform(carla.Location(x=-5.5, z=2.8),
                                 carla.Rotation(pitch=-15)),
@@ -430,7 +433,8 @@ class CarlaEnv10_eval(object):
         if self.save_display_images or self.save_rl_images:
             import datetime
             now = datetime.datetime.now()
-            image_dir = "images-" + now.strftime("%Y-%m-%d-%H-%M-%S")
+            image_dir = f"images-{self.cfg_dict['weather']}-" + \
+                now.strftime("%Y-%m-%d-%H-%M-%S")
             os.mkdir(image_dir)
             self.image_dir = image_dir
 
@@ -824,8 +828,9 @@ class CarlaEnv10_eval(object):
                 speed, self.collide_count))
             done = True
 
+        throttle_rew = throttle_brake if action is not None else 0.0
         collision_cost = 0.0001 * collision_intensities_during_last_time_step
-        reward = vel_s * dt - collision_cost - abs(steer)
+        reward = vel_s * dt + throttle_rew - collision_cost - abs(steer)
         # reward = vel_s * dt / (1. + dist_from_center) - 1.0 * colliding - 0.1 * brake - 0.1 * abs(steer)
 
         info['crash_intensity'] = collision_intensities_during_last_time_step
@@ -892,6 +897,7 @@ class CarlaEnv10_eval(object):
             im.save(image_name, "PNG", pnginfo=metadata)
 
         if self.save_display_images:
+            print("saving display image")
             bgra = np.array(image_rgb.raw_data).reshape(
                 1024, 1024, 4)  # BGRA format
             bgr = bgra[:, :, :3]  # BGR format (84 x 84 x 3)
