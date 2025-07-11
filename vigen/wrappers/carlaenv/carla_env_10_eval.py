@@ -828,8 +828,9 @@ class CarlaEnv10_eval(object):
                 speed, self.collide_count))
             done = True
 
+        throttle_rew = throttle_brake if action is not None else 0.0
         collision_cost = 0.0001 * collision_intensities_during_last_time_step
-        reward = vel_s * dt - collision_cost - abs(steer)
+        reward = vel_s * dt + throttle_rew - collision_cost - abs(steer)
         # reward = vel_s * dt / (1. + dist_from_center) - 1.0 * colliding - 0.1 * brake - 0.1 * abs(steer)
 
         info['crash_intensity'] = collision_intensities_during_last_time_step
