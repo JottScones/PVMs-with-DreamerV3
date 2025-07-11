@@ -4,7 +4,7 @@ defaults:
   replicas: 1
   method: name
   task: dummy_disc
-  seed: 0
+  seed: 1
   script: train
   batch_size: 16
   batch_length: 64
