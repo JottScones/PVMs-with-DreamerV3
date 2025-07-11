@@ -67,7 +67,6 @@ defaults:
         size: [224, 224],
         repeat: 2,
         use_seed: True,
-        weather: custom_soft_high_light,
       }
     maniskill:
       {
@@ -470,8 +469,8 @@ carlaDINOPartialFreezeEval:
   run:
     {
       envs: 1,
-      steps: 11000,
-      from_checkpoint: "logdir/DINOFT_carla_train_ID/ckpt/20250707T073336F860440/",
+      steps: 13000,
+      from_checkpoint: "logdir/DINOPartial_carla_train_ID/ckpt/20250710T210948F152429/",
     }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.freeze: False
