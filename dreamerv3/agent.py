@@ -463,7 +463,7 @@ class Agent(embodied.jax.Agent):
 
                         else:
                             result[k] = 'freeze'
-                            if (ft_layers >= 0) and (match := re.search('\/encoder\/layer\/\d+', new_path)):
+                            if (ft_layers >= 0) and (match := re.search('\/encoder\/layers?\/\d+', new_path)):
                                 layer_num = match.group().split('/')[-1]
                                 if int(layer_num) >= ft_layers:
                                     result[k] = 'finetune'
