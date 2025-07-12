@@ -358,7 +358,7 @@ class Encoder(nj.Module):
 
 print("Loading CLIP...")
 _CLIP_MODULE = FlaxCLIPVisionModel.from_pretrained(
-    "openai/clip-vit-base-patch16", dtype=jax.numpy.bfloat16)
+    "openai/clip-vit-base-patch32", dtype=jax.numpy.bfloat16)
 CLIP_PARAMS_HOST = jax.tree_util.tree_map(
     lambda x: np.asarray(x, dtype=x.dtype), _CLIP_MODULE.params)
 
