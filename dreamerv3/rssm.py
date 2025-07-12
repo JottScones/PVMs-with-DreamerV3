@@ -441,7 +441,7 @@ class CLIPEncoder(Encoder):
                      self.freeze)(x, train=training)
 
         # Apply activation and normalization
-        x = nn.act(self.act)(self.sub(f'dino_norm', nn.Norm, self.norm)(x))
+        x = nn.act(self.act)(self.sub(f'clip_norm', nn.Norm, self.norm)(x))
 
         # Flatten all dimensions except the first (batch dimension)
         x = x.reshape((x.shape[0], -1))
