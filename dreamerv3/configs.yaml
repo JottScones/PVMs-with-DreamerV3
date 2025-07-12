@@ -471,6 +471,12 @@ carlaDINOEval:
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.typ: dino
 
+carlaCLIP:
+  task: carla_town04 # town is not actually changable for now
+  run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: clip
+
 maniskill:
   task: maniskill_PickSingleYCBWrist-v1
   run: { steps: 1.01e6, train_ratio: 32 }
