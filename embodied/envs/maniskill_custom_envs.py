@@ -153,15 +153,19 @@ class PickSingleYCBWristViewEnv(PickSingleYCBWristEnv):
 
         texture = sapien.render.RenderTexture2D('metal_texture.png')
         for e in self.scene.get_all_actors():
+            if e.get_name() != "scene-0_table-workspace":
+                continue
+
             for c in e.get_components():
                 if isinstance(c, sapien.render.RenderBodyComponent):
-                    print(
-                        "Success! Found the RenderBodyComponent. Applying new texture.")
                     render_shapes = c.render_shapes
                     for shape in render_shapes:
                         for part in shape.parts:
-                            if hasattr(part, 'set_base_color_texture'):
-                                part.set_base_color_texture(texture)
+                            material = part.material
+                            if hasattr(material, 'set_base_color_texture'):
+                                print(
+                                    "Success! Found the RenderBodyComponent. Applying new texture.")
+                                material.set_base_color_texture(texture)
 
     @property
     def _default_sensor_configs(self):
