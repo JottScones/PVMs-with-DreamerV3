@@ -151,6 +151,7 @@ class PickSingleYCBWristViewEnv(PickSingleYCBWristEnv):
         super().__init__(*args, robot_uids=robot_uids, robot_init_qpos_noise=robot_init_qpos_noise, num_envs=num_envs,
                          reconfiguration_freq=reconfiguration_freq, in_distribution=in_distribution, rand_obj_idx=rand_obj_idx, **kwargs)
 
+    def _after_reconfigure(self, options):
         table = None
         table_entity_name = "scene-0_table-workspace"
         for e in self.scene.get_all_actors():
@@ -171,7 +172,8 @@ class PickSingleYCBWristViewEnv(PickSingleYCBWristEnv):
                 render_shapes = render_component.render_shapes
                 for shape in render_shapes:
                     for part in shape.parts:
-                        part.set_base_color_texture(texture)
+                        if hasattr(part, 'set_base_color_texture'):
+                            part.set_base_color_texture(texture)
 
     @property
     def _default_sensor_configs(self):
