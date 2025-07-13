@@ -4,7 +4,7 @@ defaults:
   replicas: 1
   method: name
   task: dummy_disc
-  seed: 0
+  seed: 2
   script: train
   batch_size: 16
   batch_length: 64
@@ -67,7 +67,7 @@ defaults:
         size: [256, 256],
         repeat: 2,
         use_seed: True,
-        weather: custom_soft_high_light,
+        weather: custom_hard_noisy_low_light,
       }
     maniskill:
       {
@@ -421,7 +421,7 @@ carlaDINOFreezeEval:
     {
       envs: 1,
       steps: 11000,
-      from_checkpoint: "logdir/DINOFreeze_carla_train_ID/ckpt/20250709T111708F918635/",
+      from_checkpoint: "logdir/DINOFreeze_carla_train_ID_2/ckpt/20250712T225748F750281/",
     }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.freeze: True
