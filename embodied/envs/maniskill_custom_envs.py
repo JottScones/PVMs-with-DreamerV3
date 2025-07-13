@@ -147,11 +147,9 @@ class PickSingleYCBWristEnv(PickSingleYCBEnv):
 
 @register_env("PickSingleYCBWristView-v1", max_episode_steps=50, asset_download_ids=["ycb"])
 class PickSingleYCBWristViewEnv(PickSingleYCBWristEnv):
-    def __init__(self, *args, robot_uids="panda_wristcam", robot_init_qpos_noise=0.02, num_envs=1, reconfiguration_freq=None, in_distribution=True, rand_obj_idx=0, **kwargs):
-        super().__init__(*args, robot_uids=robot_uids, robot_init_qpos_noise=robot_init_qpos_noise, num_envs=num_envs,
-                         reconfiguration_freq=reconfiguration_freq, in_distribution=in_distribution, rand_obj_idx=rand_obj_idx, **kwargs)
 
     def _after_reconfigure(self, options):
+        super()._after_reconfigure(options)
         table = None
         table_entity_name = "scene-0_table-workspace"
         for e in self.scene.get_all_actors():
