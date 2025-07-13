@@ -148,30 +148,20 @@ class PickSingleYCBWristEnv(PickSingleYCBEnv):
 @register_env("PickSingleYCBWristView-v1", max_episode_steps=50, asset_download_ids=["ycb"])
 class PickSingleYCBWristViewEnv(PickSingleYCBWristEnv):
 
-    def _after_reconfigure(self, options):
-        super()._after_reconfigure(options)
-        table = None
-        table_entity_name = "scene-0_table-workspace"
+    def _load_scene(self, options):
+        super()._load_scene(options)
+
+        texture = sapien.render.RenderTexture2D('metal_texture.png')
         for e in self.scene.get_all_actors():
-            if e.get_name() == table_entity_name:
-                table = e
-                break
-
-        if table:
-            render_component = None
-            for c in table.get_components():
+            for c in e.get_components():
                 if isinstance(c, sapien.render.RenderBodyComponent):
-                    render_component = c
-                    break
-
-            if render_component:
-                print("Success! Found the RenderBodyComponent. Applying new texture.")
-                texture = sapien.render.RenderTexture2D('metal_texture.png')
-                render_shapes = render_component.render_shapes
-                for shape in render_shapes:
-                    for part in shape.parts:
-                        if hasattr(part, 'set_base_color_texture'):
-                            part.set_base_color_texture(texture)
+                    print(
+                        "Success! Found the RenderBodyComponent. Applying new texture.")
+                    render_shapes = c.render_shapes
+                    for shape in render_shapes:
+                        for part in shape.parts:
+                            if hasattr(part, 'set_base_color_texture'):
+                                part.set_base_color_texture(texture)
 
     @property
     def _default_sensor_configs(self):
