@@ -167,26 +167,11 @@ class PickSingleYCBWristViewEnv(PickSingleYCBWristEnv):
 
             if render_component:
                 print("Success! Found the RenderBodyComponent. Applying new texture.")
-                texture_path = "metal_texture.png"
-
-                # SAPIEN's renderer is needed to create materials and textures
-                renderer = self.scene.get_renderer()
-
-                # Create the material and texture using the renderer
-                new_material = renderer.create_material()
-                new_texture = renderer.create_texture_from_file(texture_path)
-
-                # 4. Configure the material properties
-                new_material.set_base_color_texture(new_texture)
-                new_material.metallic = 0.0
-                new_material.roughness = 0.8
-                new_material.specular = 0.5
-
-                # 5. Apply the new material to the render component
-                render_component.set_material(new_material)
-
-                # You might need to update the render to see changes immediately
-                self.scene.update_render()
+                texture = sapien.render.RenderTexture2D('metal_texture.png')
+                render_shapes = render_component.render_shapes
+                for shape in render_shapes:
+                    for part in shape.parts:
+                        part.set_base_color_texture(texture)
 
     @property
     def _default_sensor_configs(self):
