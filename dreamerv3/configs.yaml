@@ -346,7 +346,7 @@ maniskillview:
   run:
     {
       steps: 12000,
-      from_checkpoint: "logdir/baseline_pick_ycb_train_ID/ckpt/20250614T044516F348219",
+      from_checkpoint: "logdir/PICK_YCB/baseline_pick_ycb_train_ID/ckpt/20250614T044516F348219/",
     }
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
