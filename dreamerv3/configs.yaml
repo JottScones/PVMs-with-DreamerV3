@@ -393,10 +393,12 @@ maniskillview:
   run:
     {
       steps: 12000,
-      from_checkpoint: "logdir/DINOFreeze_pick_ycb_train/ckpt/20250612T182947F619465",
+      from_checkpoint: "logdir/PICK_YCB/DINOFreeze_pick_ycb_train_ID/ckpt/20250612T182947F619465/",
     }
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.freeze: True
+  agent.enc.typ: dino
 
 maniskillDINO:
   task: maniskill_PickSingleYCBWrist-v1
