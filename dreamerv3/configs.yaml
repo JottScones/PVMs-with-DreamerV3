@@ -62,12 +62,7 @@ defaults:
     dmc: { size: [64, 64], repeat: 1, proprio: True, image: True, camera: -1 }
     loconav: { size: [64, 64], repeat: 1, camera: -1 }
     carla: { size: [224, 224], repeat: 2, use_seed: True }
-    carlaeval:
-      {
-        size: [224, 224],
-        repeat: 2,
-        use_seed: True,
-      }
+    carlaeval: { size: [224, 224], repeat: 2, use_seed: True }
     maniskill:
       {
         size: [256, 256],
@@ -509,7 +504,7 @@ carlaCLIPFreeze:
   agent.enc.freeze: True
   agent.enc.typ: clip
 
-maniskillDINOPartialFreeze:
+carlaCLIPPartialFreeze:
   task: carla_town04 # town is not actually changable for now
   run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]

@@ -37,7 +37,7 @@
 #! ######################################################################################
 #! ######################################################################################
 #! set configurations in run.py, e.g. options="--train_json=train_fbank.json --lr=0.01":
-options="--configs carlaCLIP --logdir ./logdir/CLIPFT_carla_train_ID"
+options="--configs carlaCLIPPartialFreeze --logdir ./logdir/CLIPPartial_carla_train_ID"
 
 #! ######################################################################################
 #! ######################################################################################
