@@ -500,6 +500,7 @@ carlaCLIP:
   run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.typ: clip
+  agent.enc.finetune_layers: 0 # FT all layers
 
 carlaCLIPFreeze:
   task: carla_town04 # town is not actually changable for now
@@ -507,6 +508,14 @@ carlaCLIPFreeze:
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.freeze: True
   agent.enc.typ: clip
+
+maniskillDINOPartialFreeze:
+  task: carla_town04 # town is not actually changable for now
+  run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: clip
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 8 # FT layers 8 and above
 
 maniskill:
   task: maniskill_PickSingleYCBWrist-v1
@@ -563,6 +572,7 @@ maniskillCLIPFreeze:
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.freeze: True
   agent.enc.typ: clip
+  agent.enc.finetune_layers: 0 # FT all layers
 
 dmc_proprio:
   <<: *size1m
