@@ -4,7 +4,7 @@ defaults:
   replicas: 1
   method: name
   task: dummy_disc
-  seed: 2
+  seed: 0
   script: train
   batch_size: 16
   batch_length: 64
@@ -420,8 +420,8 @@ carlaDINOFreezeEval:
   run:
     {
       envs: 1,
-      steps: 11000,
-      from_checkpoint: "logdir/DINOFreeze_carla_train_ID_2/ckpt/20250712T225748F750281/",
+      steps: 13000,
+      from_checkpoint: "logdir/DINOFreeze_carla_train_ID/ckpt/20250709T111708F918635/",
     }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.freeze: True
@@ -439,8 +439,8 @@ carlaDINOEval:
   run:
     {
       envs: 1,
-      steps: 11000,
-      from_checkpoint: "logdir/DINOFT_carla_train_ID/ckpt/20250707T073336F860440/",
+      steps: 13000,
+      from_checkpoint: "logdir/DINOFT_carla_train_ID_2/ckpt/20250713T202255F987287/",
     }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.typ: dino
