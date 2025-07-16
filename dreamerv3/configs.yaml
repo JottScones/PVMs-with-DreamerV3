@@ -484,6 +484,31 @@ carlaCLIPFreeze:
   agent.enc.freeze: True
   agent.enc.typ: clip
 
+carlaCLIPEval:
+  task: carlaeval_town04 # town is not actually changable for now
+  script: eval_only
+  run:
+    {
+      envs: 1,
+      steps: 13000,
+      from_checkpoint: "logdir/DINOFT_carla_train_ID/ckpt/20250707T073336F860440/",
+    }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: clip
+
+carlaCLIPFreezeEval:
+  task: carlaeval_town04 # town is not actually changable for now
+  script: eval_only
+  run:
+    {
+      envs: 1,
+      steps: 13000,
+      from_checkpoint: "logdir/DINOFT_carla_train_ID/ckpt/20250707T073336F860440/",
+    }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.freeze: True
+  agent.enc.typ: clip
+
 maniskill:
   task: maniskill_PickSingleYCBWrist-v1
   run: { steps: 1.01e6, train_ratio: 32 }
