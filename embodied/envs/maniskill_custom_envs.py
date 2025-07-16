@@ -151,7 +151,8 @@ class PickSingleYCBWristViewEnv(PickSingleYCBWristEnv):
     def _load_scene(self, options):
         super()._load_scene(options)
 
-        texture = sapien.render.RenderTexture2D('metal_texture.png')
+        texture = sapien.render.RenderTexture2D(
+            'metal_texture_256x256.png', address_mode='repeat')
         for e in self.scene.get_all_actors():
             if e.get_name() != "scene-0_table-workspace":
                 continue
