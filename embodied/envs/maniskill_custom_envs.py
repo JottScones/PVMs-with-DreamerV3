@@ -162,6 +162,11 @@ class PickSingleYCBWristViewEnv(PickSingleYCBWristEnv):
                     render_shapes = c.render_shapes
                     for shape in render_shapes:
                         for part in shape.parts:
+                            uv_coords = part.get_vertex_uv()
+                            scale_factor = 4.0  # Adjust this value to control repetition
+                            scaled_uv = uv_coords * scale_factor
+                            part.set_vertex_uv(scaled_uv)
+
                             material = part.material
                             if hasattr(material, 'set_base_color_texture'):
                                 print(
