@@ -67,7 +67,7 @@ defaults:
         size: [224, 224],
         repeat: 2,
         use_seed: True,
-        weather: custom_soft_hight_light,
+        weather: custom_hard_noisy_low_light,
       }
     maniskill:
       {
@@ -462,7 +462,7 @@ carlaDINOPartialFreeze:
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.freeze: False
   agent.enc.finetune_layers: 8 # FT layers 8 and above
-  agent.enc.typ: dino
+  agent.enc.typ: clip
 
 carlaDINOPartialFreezeEval:
   task: carlaeval_town04 # town is not actually changable for now
@@ -471,12 +471,12 @@ carlaDINOPartialFreezeEval:
     {
       envs: 1,
       steps: 13000,
-      from_checkpoint: "logdir/DINOPartial_carla_train_ID/ckpt/20250710T210948F152429/",
+      from_checkpoint: "logdir/CLIPPartial_carla_train_ID/ckpt/20250716T113109F447212/",
     }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.freeze: False
   agent.enc.finetune_layers: 8 # FT layers 8 and above
-  agent.enc.typ: dino
+  agent.enc.typ: clip
 
 carlaDINO:
   task: carla_town04 # town is not actually changable for now
