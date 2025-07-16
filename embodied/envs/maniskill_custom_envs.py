@@ -163,8 +163,18 @@ class PickSingleYCBWristViewEnv(PickSingleYCBWristEnv):
                     for shape in render_shapes:
                         for part in shape.parts:
                             uv_coords = part.get_vertex_uv()
+                            if hasattr(uv_coords, 'device') and uv_coords.device.type == 'cuda':
+                                uv_coords_cpu = uv_coords.cpu()
+                            else:
+                                uv_coords_cpu = uv_coords
+
                             scale_factor = 4.0  # Adjust this value to control repetition
-                            scaled_uv = uv_coords * scale_factor
+                            scaled_uv = uv_coords_cpu * scale_factor
+                            print(
+                                f"Scaled UV range - min: {scaled_uv.min()}, max: {scaled_uv.max()}")
+                            if hasattr(uv_coords, 'device') and uv_coords.device.type == 'cuda':
+                                scaled_uv = scaled_uv.to(uv_coords.device)
+                            # Set the new UV coordinates
                             part.set_vertex_uv(scaled_uv)
 
                             material = part.material
