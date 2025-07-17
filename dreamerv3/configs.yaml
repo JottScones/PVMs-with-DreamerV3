@@ -67,7 +67,7 @@ defaults:
         size: [224, 224],
         repeat: 2,
         use_seed: True,
-        weather: custom_hard_noisy_low_light,
+        weather: custom_soft_high_light,
       }
     maniskill:
       {
@@ -491,7 +491,7 @@ carlaCLIPEval:
     {
       envs: 1,
       steps: 13000,
-      from_checkpoint: "logdir/CLIPFT_carla_train_ID/ckpt/20250716T101613F616775/",
+      from_checkpoint: "logdir/CLIPFT_carla_train_ID_1/ckpt/20250717T100820F038898/",
     }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.typ: clip
@@ -503,7 +503,7 @@ carlaCLIPFreezeEval:
     {
       envs: 1,
       steps: 13000,
-      from_checkpoint: "logdir/CLIPFreeze_carla_train_ID/ckpt/20250716T081820F948691/",
+      from_checkpoint: "logdir/CLIPFreeze_carla_train_ID_1/ckpt/20250717T082355F311412/",
     }
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.freeze: True
