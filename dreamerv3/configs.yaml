@@ -4,7 +4,7 @@ defaults:
   replicas: 1
   method: name
   task: dummy_disc
-  seed: 0
+  seed: 2
   script: train
   batch_size: 16
   batch_length: 64
@@ -69,6 +69,7 @@ defaults:
         sim_backend: physx_cpu,
         use_seed: True,
         in_distribution: True,
+        rand_obj_idx: 2,
       }
     maniskillview:
       {
