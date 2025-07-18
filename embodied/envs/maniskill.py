@@ -9,11 +9,11 @@ import numpy as np
 
 
 class ManiSkill(embodied.Env):
-    def __init__(self, task, size=(64, 64), obs_key="image", act_key="action", seed=None, **kwargs):
+    def __init__(self, task, size=(64, 64), obs_key="image", act_key="action", rand_obj_idx=0, seed=None, **kwargs):
         kwargs['sensor_configs'] = dict(
             width=size[0], height=size[1], shader_pack="default")
 
-        self.env = gym.make(task, rand_obj_idx=seed, ** kwargs)
+        self.env = gym.make(task, rand_obj_idx=rand_obj_idx, ** kwargs)
         self.env = FlattenRGBDObservationWrapper(
             self.env, rgb=True, depth=False, state=False)
         if isinstance(self.env.action_space, gym.spaces.Dict):
