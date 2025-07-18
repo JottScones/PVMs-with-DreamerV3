@@ -69,6 +69,7 @@ defaults:
         sim_backend: physx_cpu,
         use_seed: True,
         in_distribution: True,
+        rand_obj_idx: 1,
       }
     maniskillview:
       {
