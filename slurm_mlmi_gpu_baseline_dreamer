@@ -60,7 +60,7 @@ module purge                               # Removes all modules still loaded
 module load rhel8/default-amp              # REQUIRED - loads the basic environment
 
 source /home/${USER}/.bashrc
-conda activate dreamer
+conda activate carla
 #! Insert additional module load commands after this line if needed:
 
 #! Full path to application executable: 
