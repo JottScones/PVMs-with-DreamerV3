@@ -4,7 +4,7 @@ defaults:
   replicas: 1
   method: name
   task: dummy_disc
-  seed: 2
+  seed: 0
   script: train
   batch_size: 16
   batch_length: 64
@@ -62,13 +62,7 @@ defaults:
     dmc: { size: [64, 64], repeat: 1, proprio: True, image: True, camera: -1 }
     loconav: { size: [64, 64], repeat: 1, camera: -1 }
     carla: { size: [224, 224], repeat: 2, use_seed: True }
-    carlaeval:
-      {
-        size: [224, 224],
-        repeat: 2,
-        use_seed: True,
-        weather: custom_soft_high_light,
-      }
+    carlaeval: { size: [224, 224], repeat: 2, use_seed: True }
     maniskill:
       {
         size: [256, 256],
