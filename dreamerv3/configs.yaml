@@ -366,7 +366,7 @@ carla_eval:
     {
       envs: 1,
       steps: 13000,
-      from_checkpoint: "logdir/CARLA/BASLINE/baseline_carla_train_ID/ckpt/20250708T225602F451342/",
+      from_checkpoint: "logdir/CARLA/BASELINE/baseline_carla_train_ID/ckpt/20250708T225602F451342/",
     }
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
