@@ -62,14 +62,7 @@ defaults:
     dmc: { size: [64, 64], repeat: 1, proprio: True, image: True, camera: -1 }
     loconav: { size: [64, 64], repeat: 1, camera: -1 }
     carla: { size: [128, 128], repeat: 2, use_seed: True }
-    carlaeval:
-      {
-        size: [128, 128],
-        repeat: 2,
-        use_seed: True,
-        weather: custom_hard_noisy_low_light,
-        save_display_images: True,
-      }
+    carlaeval: { size: [128, 128], repeat: 2, use_seed: True }
     maniskill:
       {
         size: [128, 128],
@@ -372,8 +365,8 @@ carla_eval:
   run:
     {
       envs: 1,
-      steps: 11000,
-      from_checkpoint: "logdir/baseline_carla_train_ID/ckpt/20250708T225602F451342/",
+      steps: 13000,
+      from_checkpoint: "logdir/CARLA/BASLINE/baseline_carla_train_ID/ckpt/20250708T225602F451342/",
     }
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
