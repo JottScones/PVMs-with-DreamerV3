@@ -65,12 +65,13 @@ defaults:
     carlaeval: { size: [224, 224], repeat: 2, use_seed: True }
     maniskill:
       {
-        size: [256, 256],
+        size: [224, 224],
         obs_mode: rgb,
         control_mode: pd_joint_delta_pos,
         sim_backend: physx_cpu,
         use_seed: True,
         in_distribution: True,
+        rand_obj_idx: 0,
       }
     maniskillview:
       {
