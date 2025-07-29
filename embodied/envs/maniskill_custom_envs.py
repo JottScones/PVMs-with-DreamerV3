@@ -159,6 +159,7 @@ class PickSingleYCBWristViewEnv(PickSingleYCBWristEnv):
         rand_obj_idx=0,
         **kwargs,
     ):
+        self.change_texture = change_texture
         super().__init__(
             *args,
             robot_uids=robot_uids,
@@ -169,7 +170,6 @@ class PickSingleYCBWristViewEnv(PickSingleYCBWristEnv):
             rand_obj_idx=rand_obj_idx,
             **kwargs,
         )
-        self.change_texture = change_texture
 
     def _load_scene(self, options):
         super()._load_scene(options)
