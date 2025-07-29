@@ -71,6 +71,7 @@ defaults:
         sim_backend: physx_cpu,
         use_seed: True,
         in_distribution: True,
+        rand_obj_idx: 0,
       }
     maniskillview:
       {
@@ -456,7 +457,7 @@ carlaDINOPartialFreeze:
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.freeze: False
   agent.enc.finetune_layers: 8 # FT layers 8 and above
-  agent.enc.typ: clip
+  agent.enc.typ: dino
 
 carlaDINOPartialFreezeEval:
   task: carlaeval_town04 # town is not actually changable for now
@@ -470,7 +471,7 @@ carlaDINOPartialFreezeEval:
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
   agent.enc.freeze: False
   agent.enc.finetune_layers: 8 # FT layers 8 and above
-  agent.enc.typ: clip
+  agent.enc.typ: dino
 
 carlaDINO:
   task: carla_town04 # town is not actually changable for now
@@ -582,6 +583,14 @@ maniskillCLIPFreeze:
   agent.enc.freeze: True
   agent.enc.typ: clip
   agent.enc.finetune_layers: 0 # FT all layers
+
+maniskillCLIPPartialFreeze:
+  task: maniskill_PickSingleYCBWrist-v1
+  run: { steps: 1.01e6, train_ratio: 32 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: clip
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 8 # FT layers 8 and above
 
 dmc_proprio:
   <<: *size1m
