@@ -147,23 +147,47 @@ class PickSingleYCBWristEnv(PickSingleYCBEnv):
 
 @register_env("PickSingleYCBWristView-v1", max_episode_steps=50, asset_download_ids=["ycb"])
 class PickSingleYCBWristViewEnv(PickSingleYCBWristEnv):
+    def __init__(
+        self,
+        *args,
+        robot_uids="panda_wristcam",
+        robot_init_qpos_noise=0.02,
+        num_envs=1,
+        reconfiguration_freq=None,
+        in_distribution=True,
+        change_texture=False,
+        rand_obj_idx=0,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            robot_uids=robot_uids,
+            robot_init_qpos_noise=robot_init_qpos_noise,
+            num_envs=num_envs,
+            reconfiguration_freq=reconfiguration_freq,
+            in_distribution=in_distribution,
+            rand_obj_idx=rand_obj_idx,
+            **kwargs,
+        )
+        self.change_texture = change_texture
 
     def _load_scene(self, options):
         super()._load_scene(options)
 
-        texture = sapien.render.RenderTexture2D(
-            'metal_texture_tiled_2x2.png', address_mode='repeat')
-        for e in self.scene.get_all_actors():
-            if e.get_name() != "scene-0_table-workspace":
-                continue
+        if self.change_texture:
+            texture = sapien.render.RenderTexture2D(
+                'dark_wood.png', address_mode='repeat')
+            for e in self.scene.get_all_actors():
+                if e.get_name() != "scene-0_table-workspace":
+                    continue
 
-            for c in e.get_components():
-                if isinstance(c, sapien.render.RenderBodyComponent):
-                    render_shapes = c.render_shapes
-                    for shape in render_shapes:
-                        for part in shape.parts:
-                            material = part.material
-                            if hasattr(material, 'set_base_color_texture'):
-                                print(
-                                    "Success! Found the RenderBodyComponent. Applying new texture.")
-                                material.set_base_color_texture(texture)
+                for c in e.get_components():
+                    if isinstance(c, sapien.render.RenderBodyComponent):
+                        render_shapes = c.render_shapes
+                        for shape in render_shapes:
+                            for part in shape.parts:
+                                material = part.material
+                                if hasattr(material, 'set_base_color_texture'):
+                                    print(
+                                        "Success! Found the RenderBodyComponent. Applying new texture.")
+                                    material.set_base_color_texture(texture)
