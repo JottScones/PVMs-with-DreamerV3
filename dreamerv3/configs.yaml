@@ -81,6 +81,8 @@ defaults:
         sim_backend: physx_cpu,
         use_seed: True,
         in_distribution: False,
+        rand_obj_idx: 0,
+        change_texture: False,
       }
 
   replay:
@@ -520,6 +522,7 @@ maniskillview:
     }
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: clip
 
 maniskillDINO:
   task: maniskill_PickSingleYCBWrist-v1
