@@ -94,7 +94,7 @@ defaults:
     duration: 0
     train_ratio: 32.0
     log_every: 120
-    report_every: 300
+    report_every: 60
     save_every: 900
     envs: 16
     eval_envs: 4
@@ -346,7 +346,7 @@ maniskillview:
   run:
     {
       steps: 12000,
-      from_checkpoint: "logdir/PICK_YCB/baseline_pick_ycb_train_ID/ckpt/20250614T044516F348219/",
+      from_checkpoint: "logdir/PICK_YCB/BASELINE/baseline_pick_ycb_train_ID/ckpt/20250614T044516F348219/",
     }
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
