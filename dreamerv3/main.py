@@ -88,10 +88,11 @@ def main(argv=None):
     elif config.script == 'eval_only':
         embodied.run.eval_only(
             bind(make_agent, config),
+            # Add the following two lines
             bind(make_replay, config, 'eval_replay', 'eval'),
-            bind(make_env, config),
-            bind(make_env, config),
             bind(make_stream, config),
+            # ---
+            bind(make_env, config),
             bind(make_logger, config),
             args)
 
