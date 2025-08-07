@@ -18,6 +18,16 @@ train_lim = int(tot * 0.8)
 train_examples = ds_shuffled.select(range(train_lim))
 eval_examples = ds_shuffled.select(range(train_lim, tot))
 
+
+@partial(jax.jit, static_argnums=(0,))
+def extract_features(model, pixel_values):
+    outs = model(pixel_values=pixel_values, train=False)
+    # use the CLS token
+    cls = outs.last_hidden_state[:, 0]
+    # Return JAX array, convert to numpy outside
+    return cls.astype(jnp.float32)
+
+
 models_to_test = [
     "carla-clip-ft-checkpoint-1",
     "carla-clip-ft-checkpoint-2",
@@ -53,16 +63,6 @@ for model_name in models_to_test:
         )
         processor = AutoImageProcessor.from_pretrained("facebook/dinov2-small")
 
-    @partial(jax.jit, static_argnums=(0,))
-    def extract_features(model, pixel_values):
-        outs = model(pixel_values=pixel_values, train=False)
-        # use the CLS token
-        cls = outs.last_hidden_state[:, 0]
-        # Return JAX array, convert to numpy outside
-        return cls.astype(jnp.float32)
-
-    # 4) Build feature / label arrays
-
     def build_split(exs):
         feats, labels = [], []
         for i, ex in enumerate(exs):
@@ -90,5 +90,5 @@ for model_name in models_to_test:
     acc = knn.score(X_eval, y_eval)
     print(f"k-NN accuracy: {acc*100:.2f}%")
 
-    with open('imagenet_results.txt', 'a+') as f:
-        f.write(f'{model_name}: {acc*100}')
+    with open('imagenet_results.txt', 'a') as f:
+        f.write(f'{model_name}: {acc*100:.2f}\n')
