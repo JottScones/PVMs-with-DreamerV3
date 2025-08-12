@@ -45,7 +45,9 @@ class Optimizer(nj.Module):
     if self.scaling:
       loss *= 1 / self.grad_scale.read()
 
-    counts = {k: math.prod(v.shape) for k, v in params.items()}
+    counts = {
+        k: sum(math.prod(x.shape) for x in jax.tree_util.tree_leaves(v)) for k, v in params.items()
+    }
     if nj.creating():
       print(self._summarize_params(counts, self.summary_depth))
 

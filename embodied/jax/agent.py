@@ -237,13 +237,13 @@ class Agent(embodied.Agent):
     with self.policy_lock:
       carry, acts, outs = self._policy(
           self.policy_params, seed, carry, obs, mode)
-
+    
     if self.jaxcfg.enable_policy:
       with self.policy_lock:
         if self.pending_sync:
           old = self.policy_params
           self.policy_params = self.pending_sync
-          jax.tree.map(lambda x: x.delete(), old)
+          # jax.tree.map(lambda x: x.delete(), old)
           self.pending_sync = None
 
     acts, outs = self._take_outs(internal.fetch_async((acts, outs)))
@@ -280,8 +280,8 @@ class Agent(embodied.Agent):
         self.pending_sync = internal.move(
             {k: allo[k] for k in self.policy_keys},
             self.policy_params_sharding)
-      else:
-        jax.tree.map(lambda x: x.delete(), allo)
+      # else:
+        # jax.tree.map(lambda x: x.delete(), allo)
 
     return_outs = {}
     if self.pending_outs:
@@ -373,14 +373,14 @@ class Agent(embodied.Agent):
       if regex:
         params = {k: v for k, v in params.items() if re.match(regex, k)}
         keys = params.keys()
-        jax.tree.map(lambda x: x.delete(), [self.params[k] for k in keys])
+        # jax.tree.map(lambda x: x.delete(), [self.params[k] for k in keys])
         params = internal.ckpt_fn({k: self.params[k] for k in keys})[1](
             internal.device_put(params, self.train_mirrored))
         print('Loaded pretrained checkpoint with keys:', list(params.keys()))
         self.params.update(params)
       else:
         chex.assert_trees_all_equal_shapes(self.params, params)
-        jax.tree.map(lambda x: x.delete(), self.params)
+        # jax.tree.map(lambda x: x.delete(), self.params)
 
         loaded = {}
         for keys, _, shard_fn in self._ckpt_groups:
@@ -390,7 +390,7 @@ class Agent(embodied.Agent):
         self.params = loaded
 
       if self.jaxcfg.enable_policy:
-        jax.tree.map(lambda x: x.delete(), self.policy_params)
+        # jax.tree.map(lambda x: x.delete(), self.policy_params)
         policy_params = {
             k: self.params[k].copy() for k in self.policy_keys}
         self.policy_params = internal.move(
@@ -467,10 +467,17 @@ class Agent(embodied.Agent):
     self._report = self._report.lower(self.params, seed, carry, data).compile()
 
   def _summary(self):
-    lines = []
-    for k, v in self.params.items():
-      lines.append(f'{k:<40} {v.dtype} {v.size} {v.shape}')
-    return '\n'.join(lines)
+    def process_params(params):
+      lines = []
+      for k, v in params.items():
+        if isinstance(v, dict):
+          lines += process_params(v)
+        else:
+          lines.append(f'{k:<40} {v.dtype} {v.size} {v.shape}')
+
+      return lines
+    
+    return '\n'.join(process_params(self.params))
 
   def _zeros(self, spaces, batch_shape):
     data = {k: np.zeros(v.shape, v.dtype) for k, v in spaces.items()}
@@ -490,7 +497,7 @@ class Agent(embodied.Agent):
       lines.append(f"Memory (code):    {mem.generated_code_size_in_bytes:.1e}")
       return ''.join(f'  {line}\n' for line in lines)
     except (TypeError, AttributeError, KeyError):
-      return 'No available'
+      return f'No available'
 
 def init(fun, **jit_kwargs):
   if not getattr(fun, '_is_pure', False):
