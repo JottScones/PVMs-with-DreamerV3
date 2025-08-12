@@ -61,18 +61,21 @@ defaults:
       { size: [64, 64], break_speed: 100.0, logs: False, length: 36000 }
     dmc: { size: [64, 64], repeat: 1, proprio: True, image: True, camera: -1 }
     loconav: { size: [64, 64], repeat: 1, camera: -1 }
+    carla: { size: [224, 224], repeat: 2, use_seed: True }
+    carlaeval: { size: [224, 224], repeat: 2, use_seed: True }
     maniskill:
       {
-        size: [128, 128],
+        size: [224, 224],
         obs_mode: rgb,
         control_mode: pd_joint_delta_pos,
         sim_backend: physx_cpu,
         use_seed: True,
         in_distribution: True,
+        rand_obj_idx: 0,
       }
     maniskillview:
       {
-        size: [128, 128],
+        size: [224, 224],
         obs_mode: rgb,
         control_mode: pd_joint_delta_pos,
         sim_backend: physx_cpu,
@@ -142,6 +145,7 @@ defaults:
     opt:
       {
         lr: 4e-5,
+        ft_lr: 4e-6,
         agc: 0.3,
         eps: 1e-20,
         beta1: 0.9,
@@ -175,6 +179,8 @@ defaults:
         }
     enc:
       typ: simple
+      freeze: True
+      finetune_layers: -1
       simple:
         {
           depth: 64,
@@ -188,6 +194,39 @@ defaults:
           outer: False,
           kernel: 5,
           strided: False,
+        }
+      perception_encoder:
+        {
+          depth: 64,
+          mults: [2, 3, 4, 4],
+          layers: 3,
+          units: 1024,
+          act: silu,
+          norm: rms,
+          winit: trunc_normal_in,
+          symlog: True,
+        }
+      dino:
+        {
+          depth: 64,
+          mults: [2, 3, 4, 4],
+          layers: 3,
+          units: 1024,
+          act: silu,
+          norm: rms,
+          winit: trunc_normal_in,
+          symlog: True,
+        }
+      clip:
+        {
+          depth: 64,
+          mults: [2, 3, 4, 4],
+          layers: 3,
+          units: 1024,
+          act: silu,
+          norm: rms,
+          winit: trunc_normal_in,
+          symlog: True,
         }
     dec:
       typ: simple
@@ -330,9 +369,163 @@ atari100k:
   task: atari100k_pong
   run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
 
+atari100kPE:
+  task: atari100kPE_pong
+  run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
+  jax: { platform: "cuda,cpu" }
+  agent:
+    enc:
+      typ: perception_encoder
+
+atari100kDINOFreeze:
+  task: atari100k_pong
+  run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
+  agent:
+    enc:
+      freeze: True
+      typ: dino
+
+atari100kDINO:
+  task: atari100k_pong
+  run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
+  agent:
+    enc:
+      freeze: False
+      finetune_layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+      typ: dino
+
+atari100kClipFreeze:
+  task: atari100k_pong
+  run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
+  agent:
+    enc:
+      typ: clip
+      freeze: True
+
+atari100kClip:
+  task: atari100k_pong
+  run: { steps: 1.1e5, envs: 1, train_ratio: 256 }
+  agent:
+    enc:
+      typ: clip
+
 crafter:
   task: crafter_reward
   run: { steps: 1.1e6, envs: 1, train_ratio: 512 }
+
+carla:
+  task: carla_town04 # town is not actually changable for now
+  run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
+  agent.enc.simple.mults: [2, 3, 4, 4, 4]
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+
+carla_eval:
+  task: carlaeval_town04 # town is not actually changable for now
+  script: eval_only
+  run:
+    {
+      envs: 1,
+      steps: 11000,
+      from_checkpoint: "logdir/baseline_pick_ycb_train_ID/ckpt/20250614T044516F348219",
+    }
+  agent.enc.simple.mults: [2, 3, 4, 4, 4]
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+
+carlaDINOFreeze:
+  task: carla_town04 # town is not actually changable for now
+  run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.freeze: True
+  agent.enc.typ: dino
+
+carlaDINOFreezeEval:
+  task: carlaeval_town04 # town is not actually changable for now
+  script: eval_only
+  run:
+    {
+      envs: 1,
+      steps: 11000,
+      from_checkpoint: "logdir/DINOFreeze_carla_train_ID/ckpt/20250709T111708F918635/",
+    }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.freeze: True
+  agent.enc.typ: dino
+
+carlaDINOPartialFreeze:
+  task: carla_town04 # town is not actually changable for now
+  run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 8 # FT layers 8 and above
+  agent.enc.typ: dino
+
+carlaDINOPartialFreezeEval:
+  task: carlaeval_town04 # town is not actually changable for now
+  script: eval_only
+  run:
+    {
+      envs: 1,
+      steps: 13000,
+      from_checkpoint: "logdir/CLIPPartial_carla_train_ID/ckpt/20250716T113109F447212/",
+    }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 8 # FT layers 8 and above
+  agent.enc.typ: dino
+
+carlaDINO:
+  task: carla_town04 # town is not actually changable for now
+  run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: dino
+
+carlaDINOEval:
+  task: carlaeval_town04 # town is not actually changable for now
+  script: eval_only
+  run:
+    {
+      envs: 1,
+      steps: 11000,
+      from_checkpoint: "logdir/DINOFT_carla_train_ID/ckpt/20250707T073336F860440/",
+    }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: dino
+
+carlaCLIP:
+  task: carla_town04 # town is not actually changable for now
+  run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: clip
+  agent.enc.finetune_layers: 0 # FT all layers
+
+carlaCLIPFreeze:
+  task: carla_town04 # town is not actually changable for now
+  run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.freeze: True
+  agent.enc.typ: clip
+
+carlaCLIPPartialFreeze:
+  task: carla_town04 # town is not actually changable for now
+  run: { steps: 2.02e5, envs: 1, train_ratio: 256 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: clip
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 8 # FT layers 8 and above
+
+carlaCLIPPartialFreezeEval:
+  task: carlaeval_town04 # town is not actually changable for now
+  script: eval_only
+  run:
+    {
+      envs: 1,
+      steps: 13000,
+      from_checkpoint: "logdir/DINOFT_carla_train_ID/ckpt/20250707T073336F860440/",
+    }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: clip
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 8 # FT layers 8 and above
 
 maniskill:
   task: maniskill_PickSingleYCBWrist-v1
@@ -346,10 +539,58 @@ maniskillview:
   run:
     {
       steps: 12000,
-      from_checkpoint: "logdir/baseline_pick_ycb_train_ID/ckpt/20250614T044516F348219",
+      from_checkpoint: "logdir/DINOPartial_pick_ycb_train_ID/ckpt/20250618T010351F830080",
     }
+  agent.enc.typ: dino
   agent.enc.simple.mults: [2, 3, 4, 4, 4]
   agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 8 # FT layers 8 and above
+
+maniskillDINO:
+  task: maniskill_PickSingleYCBWrist-v1
+  run: { steps: 1.01e6, train_ratio: 32 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: dino
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 0 # FT all layers
+
+maniskillDINOPartialFreeze:
+  task: maniskill_PickSingleYCBWrist-v1
+  run: { steps: 1.01e6, train_ratio: 32 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: dino
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 8 # FT layers 8 and above
+
+maniskillDINOFreeze:
+  task: maniskill_PickSingleYCBWrist-v1
+  run: { steps: 1.01e6, train_ratio: 32 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.freeze: True
+  agent.enc.typ: dino
+
+maniskillCLIP:
+  task: maniskill_PickSingleYCBWrist-v1
+  run: { steps: 1.01e6, train_ratio: 32 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: clip
+
+maniskillCLIPFreeze:
+  task: maniskill_PickSingleYCBWrist-v1
+  run: { steps: 1.01e6, train_ratio: 32 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.freeze: True
+  agent.enc.typ: clip
+  agent.enc.finetune_layers: 0 # FT all layers
+
+maniskillCLIPPartialFreeze:
+  task: maniskill_PickSingleYCBWrist-v1
+  run: { steps: 1.01e6, train_ratio: 32 }
+  agent.dec.simple.mults: [2, 3, 4, 4, 4]
+  agent.enc.typ: clip
+  agent.enc.freeze: False
+  agent.enc.finetune_layers: 8 # FT layers 8 and above
 
 dmc_proprio:
   <<: *size1m
