@@ -1,0 +1,59 @@
+{"step": 20, "usage/psutil/proc_cpu_usage": 0.0, "usage/psutil/proc_ram_frac": 0.006539148141008502, "usage/psutil/proc_ram_gb": 6.584747314453125, "usage/psutil/total_cpu_count": 128.0, "usage/psutil/total_cpu_frac": 0.28300000000000003, "usage/psutil/total_ram_frac": 0.062, "usage/psutil/total_ram_total_gb": 1006.973258972168, "usage/psutil/total_ram_used_gb": 33.872920989990234, "usage/psutil/total_ram_avail_gb": 944.0532989501953, "usage/nvsmi/compute_min/gpu0": 0.0, "usage/nvsmi/compute_avg/gpu0": 0.36, "usage/nvsmi/compute_max/gpu0": 0.98, "usage/nvsmi/memory_min/gpu0": 0.0, "usage/nvsmi/memory_avg/gpu0": 0.0, "usage/nvsmi/memory_max/gpu0": 0.03, "fps/policy": 0.8131737630064202}
+{"step": 150, "episode/score": 90.33530879020691, "episode/length": 75.0}
+{"step": 300, "episode/score": 98.34788638353348, "episode/length": 75.0}
+{"step": 490, "episode/score": 119.8503615707159, "episode/length": 95.0}
+{"step": 494, "episode/score": -0.8244642615318298, "episode/length": 2.0}
+{"step": 550, "episode/score": 22.00345243513584, "episode/length": 28.0}
+{"step": 1146, "episode/score": 416.5864801108837, "episode/length": 298.0}
+{"step": 1378, "episode/score": 175.57155811786652, "episode/length": 116.0}
+{"step": 1886, "episode/score": 366.8327648937702, "episode/length": 254.0}
+{"step": 2244, "episode/score": 313.61210918426514, "episode/length": 179.0}
+{"step": 2770, "episode/score": 405.7365846782923, "episode/length": 263.0}
+{"step": 3124, "episode/score": 231.3622141238302, "episode/length": 177.0}
+{"step": 3460, "epstats/reward_rate": 0.9652914655728915, "usage/psutil/proc_cpu_usage": 0.243, "usage/psutil/proc_ram_frac": 0.006828273504979873, "usage/psutil/proc_ram_gb": 6.875888824462891, "usage/psutil/total_cpu_count": 128.0, "usage/psutil/total_cpu_frac": 0.28600000000000003, "usage/psutil/total_ram_frac": 0.063, "usage/psutil/total_ram_total_gb": 1006.973258972168, "usage/psutil/total_ram_used_gb": 34.00888442993164, "usage/psutil/total_ram_avail_gb": 943.9173583984375, "usage/nvsmi/compute_min/gpu0": 0.47, "usage/nvsmi/compute_avg/gpu0": 0.6, "usage/nvsmi/compute_max/gpu0": 0.64, "usage/nvsmi/memory_min/gpu0": 0.0, "usage/nvsmi/memory_avg/gpu0": 0.0, "usage/nvsmi/memory_max/gpu0": 0.01, "fps/policy": 14.311113164503912}
+{"step": 3616, "episode/score": 353.2850936949253, "episode/length": 246.0}
+{"step": 4118, "episode/score": 294.5613361224532, "episode/length": 251.0}
+{"step": 4612, "episode/score": 307.68361566215754, "episode/length": 247.0}
+{"step": 4678, "episode/score": 28.393978483974934, "episode/length": 33.0}
+{"step": 5180, "episode/score": 302.1191276460886, "episode/length": 251.0}
+{"step": 5476, "episode/score": 227.518793836236, "episode/length": 148.0}
+{"step": 5776, "episode/score": 239.23841120675206, "episode/length": 150.0}
+{"step": 5988, "episode/score": 107.80373779684305, "episode/length": 106.0}
+{"step": 6302, "episode/score": 229.58821660280228, "episode/length": 157.0}
+{"step": 6606, "episode/score": 243.79451233893633, "episode/length": 152.0}
+{"step": 6920, "epstats/reward_rate": 0.9575393980211266, "usage/psutil/proc_cpu_usage": 0.308, "usage/psutil/proc_ram_frac": 0.006915153932350052, "usage/psutil/proc_ram_gb": 6.963375091552734, "usage/psutil/total_cpu_count": 128.0, "usage/psutil/total_cpu_frac": 0.28600000000000003, "usage/psutil/total_ram_frac": 0.062, "usage/psutil/total_ram_total_gb": 1006.973258972168, "usage/psutil/total_ram_used_gb": 33.741268157958984, "usage/psutil/total_ram_avail_gb": 944.1849822998047, "usage/nvsmi/compute_min/gpu0": 0.41, "usage/nvsmi/compute_avg/gpu0": 0.59, "usage/nvsmi/compute_max/gpu0": 0.63, "usage/nvsmi/memory_min/gpu0": 0.0, "usage/nvsmi/memory_avg/gpu0": 0.0, "usage/nvsmi/memory_max/gpu0": 0.01, "fps/policy": 14.347396182660162}
+{"step": 7134, "episode/score": 362.1796575393528, "episode/length": 264.0}
+{"step": 7372, "episode/score": 179.85502310097218, "episode/length": 119.0}
+{"step": 7718, "episode/score": 281.9651371091604, "episode/length": 173.0}
+{"step": 7862, "episode/score": 85.9259179783985, "episode/length": 72.0}
+{"step": 7866, "episode/score": -0.8613048195838928, "episode/length": 2.0}
+{"step": 7924, "episode/score": 21.2991896122694, "episode/length": 29.0}
+{"step": 7972, "episode/score": 21.881217181682587, "episode/length": 24.0}
+{"step": 8194, "episode/score": 173.8319826722145, "episode/length": 111.0}
+{"step": 8970, "episode/score": 561.3034370243549, "episode/length": 388.0}
+{"step": 9706, "episode/score": 508.97511602938175, "episode/length": 368.0}
+{"step": 10086, "episode/score": 232.34047201275826, "episode/length": 190.0}
+{"step": 10360, "epstats/reward_rate": 0.9665536884154234, "usage/psutil/proc_cpu_usage": 0.308, "usage/psutil/proc_ram_frac": 0.006916888964866644, "usage/psutil/proc_ram_gb": 6.965122222900391, "usage/psutil/total_cpu_count": 128.0, "usage/psutil/total_cpu_frac": 0.285, "usage/psutil/total_ram_frac": 0.062, "usage/psutil/total_ram_total_gb": 1006.973258972168, "usage/psutil/total_ram_used_gb": 33.62310791015625, "usage/psutil/total_ram_avail_gb": 944.303108215332, "usage/nvsmi/compute_min/gpu0": 0.47, "usage/nvsmi/compute_avg/gpu0": 0.59, "usage/nvsmi/compute_max/gpu0": 0.64, "usage/nvsmi/memory_min/gpu0": 0.0, "usage/nvsmi/memory_avg/gpu0": 0.0, "usage/nvsmi/memory_max/gpu0": 0.01, "fps/policy": 14.319504780583282}
+{"step": 10682, "episode/score": 504.3004564344883, "episode/length": 298.0}
+{"step": 11232, "episode/score": 379.00999746471643, "episode/length": 275.0}
+{"step": 11608, "episode/score": 266.24242374300957, "episode/length": 188.0}
+{"step": 11664, "episode/score": 22.31739005446434, "episode/length": 28.0}
+{"step": 11908, "episode/score": 201.03622886538506, "episode/length": 122.0}
+{"step": 11972, "episode/score": 29.792287170886993, "episode/length": 32.0}
+{"step": 12344, "episode/score": 295.6971417963505, "episode/length": 186.0}
+{"step": 12400, "episode/score": 23.20168101787567, "episode/length": 28.0}
+{"step": 12756, "episode/score": 307.43109779432416, "episode/length": 178.0}
+{"step": 13056, "episode/score": 182.45384284853935, "episode/length": 150.0}
+{"step": 13308, "episode/score": 181.24624601006508, "episode/length": 126.0}
+{"step": 13492, "episode/score": 89.44604603201151, "episode/length": 92.0}
+{"step": 13780, "epstats/reward_rate": 0.9630836969099453, "usage/psutil/proc_cpu_usage": 0.308, "usage/psutil/proc_ram_frac": 0.0069417552387507405, "usage/psutil/proc_ram_gb": 6.990161895751953, "usage/psutil/total_cpu_count": 128.0, "usage/psutil/total_cpu_frac": 0.285, "usage/psutil/total_ram_frac": 0.062, "usage/psutil/total_ram_total_gb": 1006.973258972168, "usage/psutil/total_ram_used_gb": 33.63106918334961, "usage/psutil/total_ram_avail_gb": 944.2950820922852, "usage/nvsmi/compute_min/gpu0": 0.47, "usage/nvsmi/compute_avg/gpu0": 0.6, "usage/nvsmi/compute_max/gpu0": 0.65, "usage/nvsmi/memory_min/gpu0": 0.0, "usage/nvsmi/memory_avg/gpu0": 0.0, "usage/nvsmi/memory_max/gpu0": 0.01, "fps/policy": 14.23153597133274}
+{"step": 13956, "episode/score": 342.4856097176671, "episode/length": 232.0}
+{"step": 14240, "episode/score": 215.9352571964264, "episode/length": 142.0}
+{"step": 14374, "episode/score": 92.59435059130192, "episode/length": 67.0}
+{"step": 14844, "episode/score": 362.5747662484646, "episode/length": 235.0}
+{"step": 15474, "episode/score": 441.82234624400735, "episode/length": 315.0}
+{"step": 15994, "episode/score": 339.72601225972176, "episode/length": 260.0}
+{"step": 16250, "episode/score": 180.541118144989, "episode/length": 128.0}
+{"step": 16740, "episode/score": 325.1027812361717, "episode/length": 245.0}
+{"step": 17176, "episode/score": 292.762511305511, "episode/length": 218.0}
+{"step": 17260, "epstats/reward_rate": 0.95143516743333, "usage/psutil/proc_cpu_usage": 0.317, "usage/psutil/proc_ram_frac": 0.006992889450342381, "usage/psutil/proc_ram_gb": 7.041652679443359, "usage/psutil/total_cpu_count": 128.0, "usage/psutil/total_cpu_frac": 0.28600000000000003, "usage/psutil/total_ram_frac": 0.061, "usage/psutil/total_ram_total_gb": 1006.973258972168, "usage/psutil/total_ram_used_gb": 32.83723068237305, "usage/psutil/total_ram_avail_gb": 945.0890083312988, "usage/nvsmi/compute_min/gpu0": 0.4, "usage/nvsmi/compute_avg/gpu0": 0.59, "usage/nvsmi/compute_max/gpu0": 0.65, "usage/nvsmi/memory_min/gpu0": 0.0, "usage/nvsmi/memory_avg/gpu0": 0.0, "usage/nvsmi/memory_max/gpu0": 0.01, "fps/policy": 14.463467764065173}

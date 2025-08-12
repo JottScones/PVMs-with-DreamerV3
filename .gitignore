@@ -9,5 +9,4 @@ MUJOCO_LOG.TXT
 .python-version
 machine.file*
 logs/*
-logdir/*
 slurm-*
