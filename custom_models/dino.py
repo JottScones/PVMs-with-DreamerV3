@@ -483,7 +483,6 @@ class FlaxDinov2Layer(nn.Module):
         return outputs
 
 
-# Copied from transformers.models.vit.modeling_flax_vit.FlaxViTLayerCollection with ViT->Dinov2
 class FlaxDinov2LayerCollection(nn.Module):
     config: Dinov2Config
     dtype: jnp.dtype = jnp.float32  # the dtype of the computation
@@ -518,7 +517,6 @@ class FlaxDinov2LayerCollection(nn.Module):
             if out_hid:
                 all_hids = all_hids + (x,)
 
-            if ret_dict:   # <— branch on this too
                 return FlaxBaseModelOutput(
                     last_hidden_state=x, hidden_states=all_hids, attentions=all_attns
                 )
@@ -530,13 +528,11 @@ class FlaxDinov2LayerCollection(nn.Module):
                     out += (all_attns,)
                 return out
 
-        # 2) Wrap with checkpoint, marking args 1–4 as static:
         checkpointed = jax.checkpoint(
             _forward,
-            static_argnums=(1, 2, 3, 4)      # det, out_attn, out_hid, ret_dict
+            static_argnums=(1, 2, 3, 4)
         )
 
-        # 3) Call it with all positional args
         return checkpointed(
             hidden_states,
             deterministic,
@@ -546,7 +542,6 @@ class FlaxDinov2LayerCollection(nn.Module):
         )
 
 
-# Copied from transformers.models.vit.modeling_flax_vit.FlaxViTEncoder with ViT->Dinov2
 class FlaxDinov2Encoder(nn.Module):
     config: Dinov2Config
     dtype: jnp.dtype = jnp.float32  # the dtype of the computation
