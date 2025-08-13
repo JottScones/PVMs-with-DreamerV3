@@ -11,7 +11,7 @@ import ninjax as nj
 import numpy as np
 
 from custom_models.dino import CheckpointableFlaxDinov2Model
-from transformers import AutoImageProcessor, FlaxDinov2Model
+from transformers import AutoImageProcessor, FlaxDinov2Model, AutoConfig
 
 from PIL import Image
 
@@ -356,9 +356,10 @@ class Encoder(nj.Module):
         return carry, entries, tokens
 
 
-print("Loading Dinov2...")
-_DINOV2_MODULE = CheckpointableFlaxDinov2Model.from_pretrained(
-    "facebook/dinov2-small", dtype=jax.numpy.bfloat16)
+print("Loading randomly initialised Dinov2...")
+config = AutoConfig.from_pretrained("facebook/dinov2-small")
+_DINOV2_MODULE = CheckpointableFlaxDinov2Model.from_config(
+    dtype=jax.numpy.bfloat16)
 DINO_PARAMS_HOST = jax.tree_util.tree_map(
     lambda x: np.asarray(x, dtype=x.dtype), _DINOV2_MODULE.params)
 
@@ -378,9 +379,7 @@ class DinoEncoder(nj.Module):
         ).read()
 
         # (Batch, Sequence, Hidden Size)
-        out = _DINOV2_MODULE(
-            x, train=train, params=params).last_hidden_state[:, 1:]
-        out = out.reshape((out.shape[0], -1))
+        out = _DINOV2_MODULE(x, train=train, params=params).pooler_output
         return sg(out) if self.freeze else out
 
 
