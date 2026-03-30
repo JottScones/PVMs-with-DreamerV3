@@ -18,3 +18,5 @@ vigen/img/
 vigen/results/
 vigen/algos/
 logdir/
+scores/
+metal_texture.png
