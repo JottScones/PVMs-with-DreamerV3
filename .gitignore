@@ -10,3 +10,11 @@ MUJOCO_LOG.TXT
 machine.file*
 logs/*
 slurm-*
+
+# Removed large directories from git history
+vigen/envs/
+vigen/third_party/
+vigen/img/
+vigen/results/
+vigen/algos/
+logdir/
