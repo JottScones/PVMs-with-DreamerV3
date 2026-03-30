@@ -1,4 +1,5 @@
 import math
+import os
 
 import einops
 import elements
@@ -356,11 +357,17 @@ class Encoder(nj.Module):
         return carry, entries, tokens
 
 
-print("Loading CLIP...")
-_CLIP_MODULE = FlaxCLIPVisionModel.from_pretrained(
-    "openai/clip-vit-base-patch32", dtype=jax.numpy.bfloat16)
-CLIP_PARAMS_HOST = jax.tree_util.tree_map(
-    lambda x: np.asarray(x, dtype=x.dtype), _CLIP_MODULE.params)
+# Load CLIP model only if DREAMER_LOAD_CLIP is set to '1' (default: '0')
+if os.environ.get('DREAMER_LOAD_CLIP', '0') == '1':
+    print("Loading CLIP...")
+    _CLIP_MODULE = FlaxCLIPVisionModel.from_pretrained(
+        "openai/clip-vit-base-patch32", dtype=jax.numpy.bfloat16)
+    CLIP_PARAMS_HOST = jax.tree_util.tree_map(
+        lambda x: np.asarray(x, dtype=x.dtype), _CLIP_MODULE.params)
+else:
+    print("SKIP Loading CLIP...")
+    _CLIP_MODULE = None
+    CLIP_PARAMS_HOST = None
 
 
 class ClipEncoderModule(nj.Module):
@@ -371,6 +378,9 @@ class ClipEncoderModule(nj.Module):
     """Thin wrapper that registers Dinov2 parameters in the Ninjax tree."""
 
     def __call__(self, x, *, train: bool):
+        if _CLIP_MODULE is None:
+            raise RuntimeError(
+                "CLIP model not loaded. Set DREAMER_LOAD_CLIP=1 to load it.")
         # 1) Retrieve or create the param tree inside Ninjax
         params = nj.Variable(
             lambda: CLIP_PARAMS_HOST,
@@ -449,11 +459,17 @@ class CLIPEncoder(Encoder):
         return x
 
 
-print("Loading Dinov2...")
-_DINOV2_MODULE = CheckpointableFlaxDinov2Model.from_pretrained(
-    "facebook/dinov2-small", dtype=jax.numpy.bfloat16)
-DINO_PARAMS_HOST = jax.tree_util.tree_map(
-    lambda x: np.asarray(x, dtype=x.dtype), _DINOV2_MODULE.params)
+# Load DINOv2 model only if DREAMER_LOAD_DINO is set to '1' (default: '0')
+if os.environ.get('DREAMER_LOAD_DINO', '0') == '1':
+    print("Loading Dinov2...")
+    _DINOV2_MODULE = CheckpointableFlaxDinov2Model.from_pretrained(
+        "facebook/dinov2-small", dtype=jax.numpy.bfloat16)
+    DINO_PARAMS_HOST = jax.tree_util.tree_map(
+        lambda x: np.asarray(x, dtype=x.dtype), _DINOV2_MODULE.params)
+else:
+    print("SKIP Loading Dinov2...")
+    _DINOV2_MODULE = None
+    DINO_PARAMS_HOST = None
 
 
 class DinoEncoderModule(nj.Module):
@@ -464,6 +480,9 @@ class DinoEncoderModule(nj.Module):
     """Thin wrapper that registers Dinov2 parameters in the Ninjax tree."""
 
     def __call__(self, x, *, train: bool):
+        if _DINOV2_MODULE is None:
+            raise RuntimeError(
+                "DINOv2 model not loaded. Set DREAMER_LOAD_DINO=1 to load it.")
         # 1) Retrieve or create the param tree inside Ninjax
         params = nj.Variable(
             lambda: DINO_PARAMS_HOST,

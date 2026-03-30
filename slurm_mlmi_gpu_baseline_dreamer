@@ -61,6 +61,11 @@ module load rhel8/default-amp              # REQUIRED - loads the basic environm
 
 source /home/${USER}/.bashrc
 conda activate carla
+
+# Set environment variables for model loading (set to '1' to load, '0' to skip)
+export DREAMER_LOAD_CLIP=0
+export DREAMER_LOAD_DINO=0
+
 vigen/third_party/CARLA_0.9.15/CarlaUE4.sh -RenderOffScreen -nosound -fps 20 --carla-port=2018 -carla-streaming-port=0 -prefernvidia &
 #! Insert additional module load commands after this line if needed:
 
