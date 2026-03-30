@@ -12,7 +12,7 @@
 #! Name of the job:
 #SBATCH -J gpujob
 #! Which project should be charged (NB Wilkes2 projects end in '-GPU'):
-#SBATCH -A MLMI-swj24-SL2-GPU
+#SBATCH -A PATTINSON-SL3-GPU
 #! How many whole nodes should be allocated?
 #SBATCH --nodes=1
 #! How many (MPI) tasks will there be in total?
@@ -37,7 +37,7 @@
 #! ######################################################################################
 #! ######################################################################################
 #! set configurations in run.py, e.g. options="--train_json=train_fbank.json --lr=0.01":
-options="--configs maniskillCLIPPartialFreeze --logdir ./logdir/PICK_YCB/CLIP/CLIPPartial_pick_ycb_train_ID"
+options="--configs maniskill --logdir ./logdir/PICK_YCB/BASELINE/baseline_pick_ycb_eval_ID_3"
 
 #! ######################################################################################
 #! ######################################################################################
@@ -66,7 +66,7 @@ conda activate carla
 export DREAMER_LOAD_CLIP=0
 export DREAMER_LOAD_DINO=0
 
-vigen/third_party/CARLA_0.9.15/CarlaUE4.sh -RenderOffScreen -nosound -fps 20 --carla-port=2018 -carla-streaming-port=0 -prefernvidia &
+# vigen/third_party/CARLA_0.9.15/CarlaUE4.sh -RenderOffScreen -nosound -fps 20 --carla-port=2018 -carla-streaming-port=0 -prefernvidia &
 #! Insert additional module load commands after this line if needed:
 
 #! Full path to application executable: 

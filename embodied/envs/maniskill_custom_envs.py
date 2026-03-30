@@ -15,26 +15,49 @@ class PickSingleYCBWristEnv(PickSingleYCBEnv):
   def __init__(
     self,
     *args,
+    seed=None,
     robot_uids="panda_wristcam",
     robot_init_qpos_noise=0.02,
     num_envs=1,
     reconfiguration_freq=None,
     in_distribution=True,
-    rand_obj_idx=0,
     **kwargs,
 ):
     """
     Copy of PickSingleYCBEnv init but sourcing model ids from a randomised 80/20 split of the available
-    objects. 
+    objects.
     We skip over the parent init and initialise BaseEnv.
     """
+    if seed is None:
+      raise ValueError(
+          "ManiSkill environment requires seed to be set. "
+          "Ensure 'use_seed: True' is set in the config.")
+    
     self.robot_init_qpos_noise = robot_init_qpos_noise
     self.model_id = None
     self.in_distribution = in_distribution
 
     with open('random_object_split.json', 'r') as f:
       object_splits = json.load(f)
+
+    # Derive rand_obj_idx from seed
+    num_splits = len(object_splits)
+    rand_obj_idx = seed
     
+    # Validate that seed is a valid index
+    if rand_obj_idx < 0 or rand_obj_idx >= num_splits:
+      raise ValueError(
+          f"Seed {seed} is out of valid range [0, {num_splits - 1}]. "
+          f"ManiSkill environment only supports {num_splits} different object splits. "
+          f"Available indices in random_object_split.json: {list(object_splits.keys())}")
+    
+    # Validate that this index exists in the split file
+    if str(rand_obj_idx) not in object_splits:
+      raise ValueError(
+          f"Invalid rand_obj_idx {rand_obj_idx} derived from seed {seed}. "
+          f"Available indices in random_object_split.json: {list(object_splits.keys())}. "
+          f"num_splits={num_splits}")
+
     eval_mode = "train" if self.in_distribution else "test"
     train_model_ids = object_splits[str(rand_obj_idx)][eval_mode]
     
